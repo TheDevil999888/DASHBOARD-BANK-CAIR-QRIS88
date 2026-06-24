@@ -175,7 +175,8 @@
 }
 
 .sheet-input-full,
-.range-input-full {
+.range-input-full,
+.settings-select-full {
     background: rgba(15, 23, 42, 0.8) !important;
     border: 1px solid #334155 !important;
     color: #ffd700 !important;
@@ -189,7 +190,8 @@
 }
 
 .sheet-input-full:focus,
-.range-input-full:focus {
+.range-input-full:focus,
+.settings-select-full:focus {
     background: #000 !important;
     border-color: #ffcc00 !important;
     box-shadow: 0 0 12px rgba(255, 215, 0, 0.4) !important;
@@ -200,6 +202,11 @@
 .range-input-full::placeholder {
     color: rgba(148, 163, 184, 0.4) !important;
     font-style: italic;
+}
+
+.settings-select-full {
+    appearance: auto;
+    cursor: pointer;
 }
 
 /* 5. Modal Footer */

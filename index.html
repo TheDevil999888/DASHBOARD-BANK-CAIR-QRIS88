@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -15,18 +15,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="style.css?v=2026v3">
+    <link rel="stylesheet" href="style.css?v=2026v15">
     <link rel="stylesheet" href="modern_cny_2026.css?v=2026v3">
     <link rel="stylesheet" href="settings_cny_2026.css?v=2026v3">
     <link rel="stylesheet" href="stability_fixes.css?v=2026v3">
     <!-- CNY + Ramadhan 2026 Mix Theme CSS -->
-    <link rel="stylesheet" href="theme_cny_ramadan.css?v=2026v3">
+    <link rel="stylesheet" href="theme_cny_ramadan.css?v=2026v29">
     <style>
         /* EXTRA OVERRIDE FOR ULTRA ANUNNAKI MODAL */
         .modal-content.modal-wide {
-            background: #020617 !important;
-            border: 3px solid #3b82f6 !important;
-            box-shadow: 0 0 100px rgba(59, 130, 246, 0.6) !important;
+            background: rgba(2, 6, 23, 0.2) !important;
+            backdrop-filter: blur(2px) !important;
+            border: 1px solid rgba(59, 130, 246, 0.4) !important;
+            box-shadow: 0 0 24px rgba(59, 130, 246, 0.12) !important;
             position: relative !important;
             overflow: hidden !important;
         }
@@ -36,15 +37,15 @@
             position: absolute !important;
             top: 0 !important;
             left: 0 !important;
-            width: 200% !important;
-            height: 200% !important;
+            width: 140% !important;
+            height: 140% !important;
             background-image:
-                linear-gradient(rgba(59, 130, 246, 0.2) 2px, transparent 2px),
-                linear-gradient(90deg, rgba(59, 130, 246, 0.2) 2px, transparent 2px) !important;
-            background-size: 40px 40px !important;
+                linear-gradient(rgba(59, 130, 246, 0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.1) 1px, transparent 1px) !important;
+            background-size: 56px 56px !important;
             z-index: 0 !important;
-            animation: grid-move-extreme 15s linear infinite !important;
-            opacity: 0.6 !important;
+            animation: grid-move-extreme 45s linear infinite !important;
+            opacity: 0.16 !important;
         }
 
         @keyframes grid-move-extreme {
@@ -58,8 +59,8 @@
         }
 
         .modal-content.modal-wide .modal-body {
-            background: rgba(2, 6, 23, 0.85) !important;
-            backdrop-filter: blur(15px) !important;
+            background: rgba(2, 6, 23, 0.1) !important;
+            backdrop-filter: blur(2px) !important;
             border-top: 1px solid rgba(59, 130, 246, 0.3) !important;
         }
     </style>
@@ -138,9 +139,17 @@
                             <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.1); margin: 0 10px;">
                             </div>
 
+                            <span class="date-live-track" aria-hidden="true">
+                                <svg class="date-live-guide" viewBox="0 0 320 52" preserveAspectRatio="none" aria-hidden="true">
+                                    <path class="date-live-guide-path" d="M 160 1.5 H 294 A 24.5 24.5 0 0 1 318.5 26 A 24.5 24.5 0 0 1 294 50.5 H 160 H 26 A 24.5 24.5 0 0 1 1.5 26 A 24.5 24.5 0 0 1 26 1.5 H 160 Z"></path>
+                                </svg>
+                                <span class="date-live-streak streak-gold"></span>
+                                <span class="date-live-streak streak-cyan"></span>
+                                <span class="date-live-flash flash-top"></span>
+                                <span class="date-live-flash flash-bottom"></span>
+                            </span>
                             <div class="date-content">
                                 <span id="live-day" class="date-day">---</span>
-                                <span class="date-sep"></span>
                                 <span id="live-date-text" class="date-main">-- --- ----</span>
                                 <span id="live-time-anunnaki" class="date-time">00:00:00</span>
                             </div>
@@ -244,30 +253,49 @@
             <!-- Right: Auto Refresh & Buttons -->
             <div class="header-right"
                 style="display: flex; align-items: center; gap: 15px; margin-left: auto; margin-right: -15px;">
-                <div class="auto-refresh-container">
-                    <span id="auto-refresh-label">
-                        AUTO REFRESH <span id="timer-display" class="timer-countdown"></span>
-                    </span>
-                    <label class="switch">
-                        <input type="checkbox" id="auto-refresh-toggle" onchange="toggleAutoRefresh()">
-                        <span class="slider round"></span>
-                    </label>
-                    <div style="display: flex; align-items: center;">
-                        <input type="number" id="refresh-interval" value="60" min="1">
-                        <span class="input-suffix">Sec</span>
+                <div class="header-brand-slot">
+                    <img src="logo LATOTO.png" alt="LATOTO" class="header-brand-logo">
+                </div>
+                <div class="header-control-stack">
+                    <button class="btn-refresh" onclick="location.reload()">Refresh Data</button>
+                    <button class="btn-settings" onclick="openSettings()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path
+                                d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
+                            </path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        Settings
+                    </button>
+                    <div class="auto-refresh-container">
+                        <div class="auto-refresh-meta">
+                            <span id="auto-refresh-label">
+                                <span class="auto-refresh-word">AUTO</span>
+                                <span class="auto-refresh-word">REFRESH</span>
+                            </span>
+                            <span id="timer-display" class="timer-countdown"></span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="auto-refresh-toggle" onchange="toggleAutoRefresh()">
+                            <span class="slider round"></span>
+                        </label>
+                        <div class="auto-refresh-interval">
+                            <input type="number" id="refresh-interval" value="60" min="1">
+                            <span class="input-suffix">Sec</span>
+                        </div>
                     </div>
                 </div>
-                <button class="btn-refresh" onclick="location.reload()">Refresh Data</button>
-                <button class="btn-settings" onclick="openSettings()">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path
-                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
-                        </path>
-                        <circle cx="12" cy="12" r="3"></circle>
-                    </svg>
-                    Settings
-                </button>
+            </div>
+
+            <div class="header-heart-rate" aria-hidden="true">
+                <svg class="header-heart-rate-svg" preserveAspectRatio="none">
+                    <path class="heart-rate-base"></path>
+                    <path class="heart-rate-glow"></path>
+                    <path class="heart-rate-core"></path>
+                    <path class="heart-rate-tracer-tail"></path>
+                    <path class="heart-rate-tracer"></path>
+                </svg>
             </div>
         </header>
 
@@ -446,6 +474,14 @@
                             <label for="sheet-max-1">Max Tampung</label>
                             <input type="text" id="sheet-max-1" placeholder="H9:AT9" class="range-input-full">
                         </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="sheet-read-mode-1">Mode Baca</label>
+                            <select id="sheet-read-mode-1" class="settings-select-full">
+                                <option value="auto" selected>Auto Detect</option>
+                                <option value="vertical">Vertical</option>
+                                <option value="horizontal">Horizontal</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -475,6 +511,14 @@
                         <div class="form-group" style="flex: 1;">
                             <label for="sheet-max-2">Max Tampung</label>
                             <input type="text" id="sheet-max-2" placeholder="H29:AT29" class="range-input-full">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label for="sheet-read-mode-2">Mode Baca</label>
+                            <select id="sheet-read-mode-2" class="settings-select-full">
+                                <option value="auto" selected>Auto Detect</option>
+                                <option value="vertical">Vertical</option>
+                                <option value="horizontal">Horizontal</option>
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -509,7 +553,10 @@
                         </button>
                     </div>
 
-                    <div class="header-divider"></div>
+                    <div id="minera-total-out-container" class="minera-total-badge out">
+                        <span class="badge-label">TOTAL DANA OUT</span>
+                        <span id="minera-total-out-val" class="badge-value">0</span>
+                    </div>
 
                     <div class="minera-target-group">
                         <button class="btn-action btn-gold-anunnaki" onclick="copyMineraByThreshold()">
@@ -518,13 +565,6 @@
                         <button class="btn-action btn-reset-anunnaki" onclick="resetMineraNominal()">
                             <i class="fas fa-undo"></i> RESET NOMINAL
                         </button>
-                    </div>
-
-                    <div class="header-divider"></div>
-
-                    <div id="minera-total-out-container" class="minera-total-badge out">
-                        <span class="badge-label">TOTAL DANA OUT</span>
-                        <span id="minera-total-out-val" class="badge-value">0</span>
                     </div>
                 </div> <!-- end header-actions -->
                 <button class="close-modal" onclick="closeMineraModal()">&times;</button>
@@ -536,7 +576,7 @@
                             <tr>
                                 <th style="width: 120px;">MAX TAMPUNG</th>
                                 <th style="width: 40px;"><input type="checkbox" id="check-all-minera"></th>
-                                <th style="width: 100px;">JENIS BANK</th>
+                                <th style="width: 180px;">JENIS BANK</th>
                                 <th style="width: 80px;">TIPE</th>
                                 <th style="width: 130px;">NOMOR REKENING</th>
                                 <th
@@ -555,8 +595,14 @@
             </div>
             <div class="modal-footer">
                 <div class="footer-summary">
-                    <span>Total Ready: <strong id="minera-ready-count">0</strong></span>
-                    <span>Total Balance: <strong id="minera-total-balance">Rp 0</strong></span>
+                    <div class="footer-summary-metric metric-ready">
+                        <span class="footer-summary-label">TOTAL READY</span>
+                        <strong id="minera-ready-count" class="footer-summary-value">0</strong>
+                    </div>
+                    <div class="footer-summary-metric metric-balance">
+                        <span class="footer-summary-label">TOTAL BALANCE</span>
+                        <strong id="minera-total-balance" class="footer-summary-value">Rp 0</strong>
+                    </div>
                 </div>
 
                 <!-- NEW: Auto Check Below Limit Controls -->
@@ -627,11 +673,11 @@
     <canvas id="fireworks-canvas"></canvas>
 
     <!-- Main Logic -->
-    <script src="background_particles.js?v=2026v3"></script>
-    <script src="fireworks.js?v=2026v3"></script>
-    <script src="script.js?v=2026v3"></script>
+    <script src="background_particles.js?v=2026v4"></script>
+    <script src="fireworks.js?v=2026v4"></script>
+    <script src="script.js?v=2026v17"></script>
     <script src="auto_check_logic.js?v=2026v3"></script>
-    <script src="modern_cny_cursor.js?v=2026v3"></script>
+    <script src="modern_cny_cursor.js?v=2026v8"></script>
     <!-- CNY + Ramadhan Mix 2026 Script -->
     <script src="theme_cny_ramadan.js?v=2026v3"></script>
     <script>

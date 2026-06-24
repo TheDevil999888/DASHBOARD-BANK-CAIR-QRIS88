@@ -9,6 +9,7 @@ let time = 0;
 let birds = [];
 let fogs = [];
 let waterRipples = [];
+let lastLandscapeFrame = 0;
 
 // Seeded random for consistent mountain generation
 let seed = 12345;
@@ -24,7 +25,7 @@ function initLandscape() {
     // Init Birds
     birds = [];
     // Flock 1
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 8; i++) {
         birds.push({
             x: width * 0.7 + Math.random() * 300,
             y: height * 0.15 + Math.random() * 100 - 50,
@@ -38,7 +39,7 @@ function initLandscape() {
 
     // Init Volumetric Fog Clouds
     fogs = [];
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 5; i++) {
         fogs.push({
             x: Math.random() * width,
             y: height * 0.4 + Math.random() * 200, // Thicker around the mid-mountain bases
@@ -52,7 +53,7 @@ function initLandscape() {
 
     // Init River Ripples
     waterRipples = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 18; i++) {
         waterRipples.push({
             x: Math.random() * width,
             y: height * 0.75 + Math.random() * (height * 0.25),
@@ -192,6 +193,18 @@ function drawBoat() {
 }
 
 function renderLandscape() {
+    if (document.hidden) {
+        requestAnimationFrame(renderLandscape);
+        return;
+    }
+
+    const now = performance.now();
+    if (now - lastLandscapeFrame < 41) {
+        requestAnimationFrame(renderLandscape);
+        return;
+    }
+    lastLandscapeFrame = now;
+
     ctx.clearRect(0, 0, width, height);
 
     // 1. Sky Gradient (Pale Blue/Grey Ink Wash)
@@ -368,7 +381,7 @@ function renderLandscape() {
         ctx.restore();
     });
 
-    time += 0.016;
+    time += 0.013;
     requestAnimationFrame(renderLandscape);
 }
 

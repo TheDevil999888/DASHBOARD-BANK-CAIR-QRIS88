@@ -1,4 +1,4 @@
-﻿/* ==========================================
+/* ==========================================
    ANUNNAKI NEW DESIGN SYSTEM
    ========================================== */
 :root {
@@ -176,7 +176,7 @@ body {
     z-index: 2;
     opacity: 0.9;
     pointer-events: none;
-    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.4));
+    filter: none;
 }
 
 
@@ -298,14 +298,14 @@ body {
     height: 97%;
     background: rgba(18, 19, 23, 0.15);
     /* Very transparent to show particles */
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(2px);
     /* Minimized blur */
     border: 1px solid rgba(234, 179, 8, 0.15);
     border-radius: 12px;
     display: flex;
     flex-direction: column;
     box-shadow:
-        0 0 40px rgba(0, 0, 0, 0.6),
+        0 0 26px rgba(0, 0, 0, 0.52),
         inset 0 0 20px rgba(234, 179, 8, 0.03);
     overflow: hidden;
     position: relative;
@@ -483,22 +483,25 @@ body {
 .anunnaki-date-display {
     display: flex;
     align-items: center;
-    gap: 15px;
-    background: linear-gradient(90deg, rgba(69, 10, 10, 0.9) 0%, rgba(30, 0, 0, 0.4) 100%);
-    /* Deep Red Gradient */
-    border: 1px solid rgba(234, 179, 8, 0.3);
-    /* Gold Border */
-    border-left: 4px solid #eab308;
-    /* Gold Accent */
-    padding: 8px 18px;
-    border-radius: 4px 12px 12px 4px;
+    justify-content: center;
+    gap: 0;
+    background: linear-gradient(135deg, rgba(5, 16, 36, 0.9) 0%, rgba(6, 26, 58, 0.78) 100%);
+    border: 1px solid rgba(245, 198, 92, 0.78);
+    padding: 10px 18px;
+    border-radius: 999px;
     box-shadow:
-        10px 0 20px rgba(0, 0, 0, 0.5),
-        inset 0 0 15px rgba(234, 179, 8, 0.1);
+        0 12px 24px rgba(0, 0, 0, 0.28),
+        inset 0 1px 0 rgba(255, 255, 255, 0.08),
+        0 0 18px rgba(245, 198, 92, 0.08);
     position: relative;
     overflow: hidden;
-    backdrop-filter: blur(10px);
+    backdrop-filter: blur(4px);
     width: fit-content;
+}
+
+.anunnaki-date-display .sync-status,
+.anunnaki-date-display > div[style*="width: 1px"] {
+    display: none !important;
 }
 
 .live-indicator {
@@ -546,38 +549,49 @@ body {
 .date-content {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    white-space: nowrap;
 }
 
 .date-day {
-    font-size: 0.9rem;
+    font-size: 0.98rem;
     font-weight: 900;
     color: #f8fafc;
-    letter-spacing: 1px;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    letter-spacing: 0.2px;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
+}
+
+.date-day::after {
+    content: ',';
+    margin-left: 2px;
+    color: rgba(248, 250, 252, 0.92);
+}
+
+.date-sep::before {
+    content: '|';
+    color: rgba(245, 198, 92, 0.92);
+    font-weight: 700;
+    margin: 0 2px;
 }
 
 .date-main {
-    font-size: 0.85rem;
-    font-weight: 700;
-    color: #fefce8;
-    /* Pale gold/white for better contrast */
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
+    font-size: 0.98rem;
+    font-weight: 800;
+    color: #f8fafc;
+    letter-spacing: 0.2px;
 }
 
 .date-time {
-    font-size: 1.1rem;
+    font-size: 0.98rem;
     font-weight: 900;
-    color: #eab308;
-    /* Gold */
-    background: rgba(234, 179, 8, 0.1);
-    padding: 2px 12px;
-    border-radius: 4px;
+    color: #f8fafc;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
     font-family: 'Outfit', monospace;
-    letter-spacing: 2px;
-    border: 1px solid rgba(234, 179, 8, 0.3);
-    text-shadow: 0 0 15px rgba(234, 179, 8, 0.5);
+    letter-spacing: 0.2px;
+    border: none;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.12);
 }
 
 
@@ -1949,7 +1963,7 @@ input[type=number]::-webkit-outer-spin-button {
     height: 2px;
     background: linear-gradient(90deg, transparent, #eab308, #fef08a, #eab308, transparent);
     box-shadow: 0 0 15px #eab308;
-    animation: scanning-laser 4s linear infinite;
+    animation: scanning-laser 8s linear infinite;
     pointer-events: none;
     /* HIT TEST FIX */
     z-index: 10;
@@ -2041,9 +2055,9 @@ input[type=number]::-webkit-outer-spin-button {
 /* CHECK */
 .minera-table th:nth-child(3),
 .minera-table td:nth-child(3) {
-    width: 100px;
-    min-width: 100px;
-    max-width: 100px;
+    width: 180px;
+    min-width: 180px;
+    max-width: 180px;
 }
 
 /* JENIS BANK */
@@ -2117,6 +2131,11 @@ input[type=number]::-webkit-outer-spin-button {
     text-align: center;
     color: white;
     display: block;
+    font-size: 0.72rem;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: break-word;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
 }
 
 .bank-danamon {
@@ -2188,6 +2207,18 @@ input[type=number]::-webkit-outer-spin-button {
 
 .bank-muamalat {
     background: #4c1d95;
+}
+
+.bank-nobu {
+    background: #0f766e;
+}
+
+.bank-uob {
+    background: #0f4c81;
+}
+
+.bank-sahabat-sampoerna {
+    background: #9333ea;
 }
 
 .bank-other {
@@ -2383,17 +2414,17 @@ input[type=number]::-webkit-outer-spin-button {
     /* Strong Gold Border */
     border-radius: 8px;
     /* Slightly more rounded */
-    padding: 0 10px;
+    padding: 0 6px;
     /* Outer padding */
     overflow: hidden;
     box-shadow: 0 0 25px rgba(220, 38, 38, 0.3), inset 0 0 15px rgba(0, 0, 0, 0.9);
-    height: 65px;
-    /* INCREASED HEIGHT */
+    height: 78px;
     position: relative;
     margin-right: auto;
     /* Push to left */
     /* REMOVED MIN-WIDTH to let flex grow naturally */
     backdrop-filter: blur(15px);
+    flex-shrink: 0;
 }
 
 /* Internal Glow Animation */
@@ -2423,32 +2454,36 @@ input[type=number]::-webkit-outer-spin-button {
     }
 }
 
-.footer-summary span {
+.footer-summary-metric {
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    /* Center text */
     height: 100%;
-    /* Equal spacing */
-    padding: 0 40px;
-    /* INCREASED PADDING */
+    padding: 0 22px;
     font-family: 'Outfit', sans-serif;
     color: #eab308;
     position: relative;
     z-index: 2;
     text-transform: uppercase;
-    font-size: 0.75rem;
-    /* Slightly larger */
-    font-weight: 700;
-    letter-spacing: 2px;
+    min-width: 156px;
+}
+
+.footer-summary-metric.metric-balance {
+    min-width: 260px;
+}
+
+.footer-summary-label {
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 1.8px;
     text-shadow: 0 2px 5px rgba(0, 0, 0, 0.8);
-    min-width: 140px;
-    /* Ensure minimum width for text */
+    line-height: 1;
+    white-space: nowrap;
 }
 
 /* Divider with Glowing Node */
-.footer-summary span:not(:last-child)::before {
+.footer-summary-metric:not(:last-child)::before {
     content: '';
     position: absolute;
     right: 0;
@@ -2462,29 +2497,28 @@ input[type=number]::-webkit-outer-spin-button {
     box-shadow: 0 0 10px #eab308;
 }
 
-.footer-summary strong {
+.footer-summary-value {
     font-family: 'Outfit', sans-serif;
     font-weight: 800;
-    font-size: 1.5rem;
-    /* Larger numbers */
+    font-size: 1.52rem;
     color: #ffffff;
-    /* Crisp White */
     text-shadow: 0 0 15px rgba(220, 38, 38, 1), 0 0 30px rgba(234, 179, 8, 0.6);
-    /* Deep Red & Gold Glow */
-    letter-spacing: 1px;
-    line-height: 1.1;
-    margin-top: 2px;
+    letter-spacing: 0.4px;
+    line-height: 1;
+    margin-top: 8px;
+    white-space: nowrap;
+    display: block;
 }
 
 /* Specific ID styling for differentiation */
 #minera-ready-count {
     color: #fef08a;
-    /* Lighter Gold */
 }
 
 #minera-total-balance {
     color: #fff;
-    /* White */
+    font-size: 1.92rem;
+    letter-spacing: 0.2px;
 }
 
 /* Updated Minera Modal Header to match footer */
@@ -2492,7 +2526,7 @@ input[type=number]::-webkit-outer-spin-button {
     background: linear-gradient(90deg, #1e0000, #450a0a);
     /* Deep CNY Red */
     border-bottom: 1px solid rgba(234, 179, 8, 0.4);
-    box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 8px 22px -10px rgba(0, 0, 0, 0.65);
 }
 
 .minera-modal-header::before {
@@ -2518,11 +2552,12 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .minera-header-actions {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
     align-items: center;
-    gap: 20px;
+    gap: 8px;
     background: rgba(30, 41, 59, 0.8);
-    padding: 0 20px;
+    padding: 0 12px;
     /* Zero vertical padding, use fixed height */
     height: 70px;
     /* FIXED HEIGHT */
@@ -2532,12 +2567,14 @@ input[type=number]::-webkit-outer-spin-button {
     /* Reset line-height */
     border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.05);
-    margin: 0 20px;
+    margin: 0 12px 0 16px;
     z-index: 50;
     pointer-events: none !important;
     overflow: hidden;
     /* Prevent spillover */
     box-sizing: border-box;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* CRITICAL: ISOLATE BUTTONS FROM CONTAINER */
@@ -2561,7 +2598,9 @@ input[type=number]::-webkit-outer-spin-button {
 
 .btn-group-auto {
     display: flex;
-    gap: 10px;
+    gap: 6px;
+    justify-self: start;
+    min-width: 0;
 }
 
 .header-divider {
@@ -2574,7 +2613,9 @@ input[type=number]::-webkit-outer-spin-button {
 .minera-target-group {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 6px;
+    justify-self: end;
+    min-width: 0;
 }
 
 .target-label {
@@ -2598,13 +2639,13 @@ input[type=number]::-webkit-outer-spin-button {
     text-align: right;
     font-weight: 800;
     font-family: 'Outfit', monospace;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.22);
 }
 
 .minera-target-input:focus {
     border-color: #eab308;
-    box-shadow: 0 0 15px rgba(234, 179, 8, 0.2), inset 0 0 5px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 8px rgba(234, 179, 8, 0.14), inset 0 0 4px rgba(0, 0, 0, 0.36);
 }
 
 /* Anunnaki Premium Buttons */
@@ -2614,7 +2655,7 @@ input[type=number]::-webkit-outer-spin-button {
     /* Lucky Red */
     color: #fef2f2;
     font-size: 13px !important;
-    padding: 12px 16px !important;
+    padding: 12px 14px !important;
     border: 1px solid rgba(254, 240, 138, 0.2) !important;
     /* Gold hint border */
     box-shadow: 0 4px 10px rgba(220, 38, 38, 0.2);
@@ -2622,7 +2663,7 @@ input[type=number]::-webkit-outer-spin-button {
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 160px;
+    width: 136px;
     /* FIXED WIDTH */
     /* Fixed width to prevent jump */
     border-radius: 8px;
@@ -2648,14 +2689,14 @@ input[type=number]::-webkit-outer-spin-button {
     background: linear-gradient(135deg, #eab308 0%, #a16207 100%);
     color: #422006;
     font-size: 13px !important;
-    padding: 12px 16px !important;
+    padding: 12px 12px !important;
     border: 1px solid rgba(255, 255, 255, 0.2) !important;
     box-shadow: 0 4px 10px rgba(234, 179, 8, 0.2);
     /* Fixed width */
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 140px;
+    width: 114px;
     /* FIXED WIDTH */
     /* Fixed width */
     border-radius: 8px;
@@ -2680,14 +2721,14 @@ input[type=number]::-webkit-outer-spin-button {
     background: linear-gradient(135deg, #475569 0%, #1e293b 100%);
     color: white;
     font-size: 13px !important;
-    padding: 12px 16px !important;
+    padding: 12px 14px !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
     /* Fixed width for longer text */
     display: flex;
     justify-content: center;
     align-items: center;
-    width: 170px;
+    width: 142px;
     /* FIXED WIDTH */
     /* Fixed width */
     border-radius: 8px;
@@ -2758,9 +2799,9 @@ input[type=number]::-webkit-outer-spin-button {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    box-shadow: 0 0 30px rgba(0, 0, 0, 0.5), 0 0 15px rgba(220, 38, 38, 0.2);
-    backdrop-filter: blur(10px);
-    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 0 18px rgba(0, 0, 0, 0.42), 0 0 8px rgba(220, 38, 38, 0.12);
+    backdrop-filter: blur(4px);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
     overflow: hidden;
     cursor: default;
     user-select: none;
@@ -2770,9 +2811,9 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .total-ready-badge:hover {
-    transform: scale(1.05);
+    transform: translateY(-1px);
     border-color: #eab308;
-    box-shadow: 0 0 40px rgba(220, 38, 38, 0.4);
+    box-shadow: 0 0 22px rgba(220, 38, 38, 0.18);
 }
 
 .total-label {
@@ -2800,26 +2841,32 @@ input[type=number]::-webkit-outer-spin-button {
 .minera-total-badge.out {
     background: rgba(15, 23, 42, 0.6);
     /* Dark Glass */
-    backdrop-filter: blur(12px);
+    backdrop-filter: blur(5px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     /* Subtle tech border */
     border-left: 3px solid #ef4444;
     /* Strong Red Accent for 'OUT' */
     border-radius: 4px;
     /* Tech corners */
-    padding: 8px 20px;
-    width: 250px;
+    padding: 9px 12px;
+    width: 286px;
+    min-width: 286px;
+    max-width: 286px;
     /* FIXED WIDTH to prevent shift */
     display: flex;
     flex-direction: column;
     justify-content: center;
-    align-items: flex-end;
-    /* Right align numbers */
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    align-items: center;
+    gap: 3px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
     /* Prevent shrinking */
+    box-sizing: border-box;
+    min-height: 64px;
+    justify-self: center;
 }
 
 /* Subtle scanline overlay */
@@ -2844,7 +2891,7 @@ input[type=number]::-webkit-outer-spin-button {
     width: 100%;
     height: 100%;
     background: linear-gradient(180deg, transparent, rgba(239, 68, 68, 0.2), transparent);
-    animation: scanner-sweep 3s ease-in-out infinite;
+    animation: scanner-sweep 5.5s linear infinite;
     z-index: 2;
 }
 
@@ -2860,29 +2907,40 @@ input[type=number]::-webkit-outer-spin-button {
 
 .minera-total-badge .badge-label {
     font-family: 'Outfit', sans-serif;
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     color: #94a3b8;
     /* Muted tech gray */
     text-transform: uppercase;
-    letter-spacing: 2px;
-    margin-bottom: 2px;
+    letter-spacing: 1.6px;
+    margin-bottom: 0;
     z-index: 5;
     text-shadow: none;
+    white-space: nowrap;
+    width: 100%;
+    text-align: center;
+    display: block;
 }
 
 .minera-total-badge .badge-value {
     font-family: 'Outfit', sans-serif;
-    font-size: 1.8rem;
+    font-size: 1.46rem;
     font-weight: 700;
     /* Cleaner weight */
     color: #f8fafc;
     /* Crisp White */
     text-shadow: 0 2px 10px rgba(220, 38, 38, 0.3);
     /* Subtle red glow shadow */
-    letter-spacing: 0.5px;
+    letter-spacing: 0.18px;
     line-height: 1;
     z-index: 5;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    overflow: visible;
+    display: block;
+    width: 100%;
+    text-align: center;
+    margin-inline: auto;
 }
 
 .minera-total-badge .badge-value.empty {
@@ -2908,7 +2966,7 @@ input[type=number]::-webkit-outer-spin-button {
             rgba(234, 179, 8, 0.05),
             transparent);
     /* Gold/Red Scanner */
-    animation: scanner-move 4s linear infinite;
+    animation: scanner-move 6.5s linear infinite;
     z-index: 2;
 }
 
@@ -2942,7 +3000,7 @@ input[type=number]::-webkit-outer-spin-button {
 }
 
 .pulse-animation {
-    animation: dash-pulse 0.3s ease-out;
+    animation: dash-pulse 0.18s ease-out;
 }
 
 /* Close Button Minera Logic */
@@ -2961,7 +3019,8 @@ input[type=number]::-webkit-outer-spin-button {
     font-size: 1.4rem;
     transition: transform 0.2s, background-color 0.2s, border-color 0.2s, color 0.2s;
     padding: 0;
-    margin-left: 10px;
+    margin-left: 4px;
+    flex-shrink: 0;
 }
 
 .minera-modal-header .close-modal:hover {
@@ -2974,23 +3033,114 @@ input[type=number]::-webkit-outer-spin-button {
 
 /* Minera Saldo Column Premium Styling */
 .minera-saldo-col {
-    font-family: 'Outfit', sans-serif !important;
-    font-size: 1.15rem !important;
-    text-align: right !important;
-    letter-spacing: 0.8px !important;
-    padding-right: 20px !important;
+    text-align: center !important;
+    padding-right: 6px !important;
+    padding-left: 6px !important;
     position: relative;
-    text-shadow: 0 0 12px currentColor;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.03) 100%);
-    border-left: 1px solid rgba(255, 255, 255, 0.05);
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.025) 100%);
+    border-left: 1px solid rgba(255, 255, 255, 0.04);
     white-space: nowrap;
+    vertical-align: middle !important;
+}
+
+.minera-saldo-pill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-inline: auto;
+    min-width: 112px;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 11px;
+    clip-path: polygon(10% 0, 100% 0, 100% 76%, 90% 100%, 0 100%, 0 24%);
+    font-family: 'Outfit', sans-serif !important;
+    font-size: 0.9rem !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.2px !important;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    gap: 5px;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.34);
+    transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+}
+
+.minera-saldo-prefix {
+    font-size: 0.62rem !important;
     font-weight: 700 !important;
+    letter-spacing: 0.2px !important;
+    opacity: 0.88;
+}
+
+.minera-saldo-pill::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 18%, rgba(255, 255, 255, 0.22) 50%, transparent 82%);
+    transform: translateX(-140%);
+    animation: mineriaSaldoShine 11s linear infinite;
+    pointer-events: none;
+}
+
+.minera-saldo-pill::after {
+    content: '';
+    position: absolute;
+    left: 9px;
+    top: 50%;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    transform: translateY(-50%);
+    opacity: 0.95;
+    pointer-events: none;
+}
+
+.minera-saldo-pill.saldo-normal {
+    color: #d9fff7 !important;
+    background: linear-gradient(135deg, rgba(4, 62, 47, 0.96) 0%, rgba(16, 185, 129, 0.62) 55%, rgba(8, 145, 178, 0.38) 100%);
+    border-color: rgba(45, 212, 191, 0.58);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 0 10px rgba(45, 212, 191, 0.1);
+}
+
+.minera-saldo-pill.saldo-normal::after {
+    background: #5eead4;
+    box-shadow: 0 0 8px rgba(45, 212, 191, 0.7);
+}
+
+.minera-saldo-pill.saldo-alert {
+    color: #ffd1d8 !important;
+    background: linear-gradient(135deg, rgba(88, 14, 24, 0.96) 0%, rgba(190, 24, 93, 0.58) 56%, rgba(220, 38, 38, 0.34) 100%);
+    border-color: rgba(251, 113, 133, 0.56);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 0 10px rgba(251, 113, 133, 0.1);
+}
+
+.minera-saldo-pill.saldo-alert::after {
+    background: #fb7185;
+    box-shadow: 0 0 8px rgba(251, 113, 133, 0.72);
 }
 
 .minera-table tbody tr:hover .minera-saldo-col {
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.05) 100%);
-    color: inherit !important;
-    /* Keep original state color but sharper */
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.04) 100%);
+}
+
+.minera-table tbody tr:hover .minera-saldo-pill {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+}
+
+@keyframes mineriaSaldoShine {
+    0% {
+        transform: translateX(-145%);
+    }
+
+    48%,
+    100% {
+        transform: translateX(145%);
+    }
 }
 
 /* ==========================================

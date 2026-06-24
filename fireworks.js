@@ -6,6 +6,9 @@ const fwCtx = fwCanvas.getContext('2d');
 let fwWidth, fwHeight;
 let fireworks = [];
 let particles = [];
+let lastLaunchTime = 0;
+const FIREWORK_LAUNCH_INTERVAL = 1450;
+let lastFireworksFrame = 0;
 
 function initFireworks() {
     fwWidth = fwCanvas.width = window.innerWidth;
@@ -40,8 +43,8 @@ class Firework {
             this.coordinates.push([this.x, this.y]);
         }
         this.angle = Math.atan2(ty - sy, tx - sx);
-        this.speed = 2;
-        this.acceleration = 1.05;
+        this.speed = 1.45;
+        this.acceleration = 1.03;
         this.brightness = random(50, 70);
         this.targetRadius = 1;
 
@@ -97,13 +100,13 @@ class Particle {
             this.coordinates.push([this.x, this.y]);
         }
         this.angle = random(0, Math.PI * 2);
-        this.speed = random(1, 10);
-        this.friction = 0.95;
+        this.speed = random(0.8, 7.5);
+        this.friction = 0.965;
         this.gravity = 1;
         this.hue = hue + random(-20, 20); // Variation
         this.brightness = random(50, 80);
         this.alpha = 1;
-        this.decay = random(0.015, 0.03);
+        this.decay = random(0.009, 0.018);
 
         // Sparkle effect
         this.sparkle = Math.random() < 0.3; // 30% chance to sparkle
@@ -137,7 +140,7 @@ class Particle {
 }
 
 function createParticles(x, y, baseHue) {
-    let particleCount = 50; // More particles
+    let particleCount = 26;
     while (particleCount--) {
         particles.push(new Particle(x, y, baseHue));
     }
@@ -145,10 +148,17 @@ function createParticles(x, y, baseHue) {
 
 function loop() {
     requestAnimationFrame(loop);
+    if (document.hidden) return;
+
+    const perfNow = performance.now();
+    if (perfNow - lastFireworksFrame < 41) return;
+    lastFireworksFrame = perfNow;
+
+    const now = Date.now();
 
     // Trails effect
     fwCtx.globalCompositeOperation = 'destination-out';
-    fwCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    fwCtx.fillStyle = 'rgba(0, 0, 0, 0.58)';
     fwCtx.fillRect(0, 0, fwWidth, fwHeight);
     fwCtx.globalCompositeOperation = 'lighter';
 
@@ -164,8 +174,9 @@ function loop() {
         particles[j].update(j);
     }
 
-    // Launch frequency (More often)
-    if (Math.random() < 0.08) { // Increased from 0.05
+    // Launch lebih santai agar animasi tidak terlalu cepat
+    if (now - lastLaunchTime >= FIREWORK_LAUNCH_INTERVAL && Math.random() < 0.42 && particles.length < 120) {
+        lastLaunchTime = now;
         // Launch from bottom, aim for top half
         fireworks.push(new Firework(
             random(0, fwWidth), // Start X

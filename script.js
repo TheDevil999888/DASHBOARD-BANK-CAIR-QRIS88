@@ -3,6 +3,308 @@ let CURRENT_SECTIONS = []; // Global store for latest fetched data
 let latestCloudData = null;
 let cloudSettings = {};
 let cloudMineraAccounts = {};
+let mineriaTotalPulseTimer = null;
+const AUTO_REFRESH_DEADLINE_KEY = 'autoRefreshDeadlineTs';
+
+function initLiveDatePillAnimation() {
+    const pill = document.getElementById('live-date-anunnaki');
+    if (!pill || pill.dataset.liveAnimationReady === 'true') return;
+
+    const track = pill.querySelector('.date-live-track');
+    const guideSvg = pill.querySelector('.date-live-guide');
+    const guidePath = pill.querySelector('.date-live-guide-path');
+    const goldStreak = pill.querySelector('.date-live-streak.streak-gold');
+    const cyanStreak = pill.querySelector('.date-live-streak.streak-cyan');
+    const topFlash = pill.querySelector('.date-live-flash.flash-top');
+    const bottomFlash = pill.querySelector('.date-live-flash.flash-bottom');
+
+    if (!track || !guideSvg || !guidePath || !goldStreak || !cyanStreak || !topFlash || !bottomFlash) return;
+
+    pill.dataset.liveAnimationReady = 'true';
+
+    const durationMs = 3400;
+    const guideViewBox = guideSvg.viewBox.baseVal;
+    const routeLength = guidePath.getTotalLength();
+    let lastRenderTime = 0;
+
+    const setFlashState = (element, intensity) => {
+        const opacity = Math.max(0, Math.min(1, intensity));
+        const scale = 0.82 + opacity * 0.72;
+        element.style.opacity = opacity.toFixed(3);
+        element.style.transform = `translateX(-50%) scale(${scale.toFixed(3)})`;
+    };
+
+    const setStreakPosition = (element, progress) => {
+        const wrappedProgress = ((progress % 1) + 1) % 1;
+        const currentLength = wrappedProgress * routeLength;
+        const nextLength = (currentLength + 1.5) % routeLength;
+        const currentPoint = guidePath.getPointAtLength(currentLength);
+        const nextPoint = guidePath.getPointAtLength(nextLength);
+        const scaleX = track.clientWidth / guideViewBox.width;
+        const scaleY = track.clientHeight / guideViewBox.height;
+        const x = currentPoint.x * scaleX;
+        const y = currentPoint.y * scaleY;
+        const dx = (nextPoint.x - currentPoint.x) * scaleX;
+        const dy = (nextPoint.y - currentPoint.y) * scaleY;
+        const rotation = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        element.style.left = `${x.toFixed(2)}px`;
+        element.style.top = `${y.toFixed(2)}px`;
+        element.style.transform = `translate(-50%, -50%) rotate(${rotation.toFixed(2)}deg)`;
+    };
+
+    const pulse = (phase, center, spread) => {
+        const distance = Math.min(
+            Math.abs(phase - center),
+            Math.abs(phase - center + 1),
+            Math.abs(phase - center - 1)
+        );
+        if (distance >= spread) return 0;
+        const normalized = 1 - (distance / spread);
+        return normalized * normalized;
+    };
+
+    const animate = (now) => {
+        if (document.hidden) {
+            window.requestAnimationFrame(animate);
+            return;
+        }
+
+        if (now - lastRenderTime < 33) {
+            window.requestAnimationFrame(animate);
+            return;
+        }
+        lastRenderTime = now;
+
+        const phase = (now % durationMs) / durationMs;
+        setStreakPosition(goldStreak, phase);
+        setStreakPosition(cyanStreak, 1 - phase);
+
+        setFlashState(topFlash, Math.max(pulse(phase, 0, 0.075), pulse(phase, 1, 0.075)));
+        setFlashState(bottomFlash, pulse(phase, 0.5, 0.075));
+
+        window.requestAnimationFrame(animate);
+    };
+
+    window.requestAnimationFrame(animate);
+}
+
+function initHeaderHeartRate() {
+    const header = document.querySelector('.dashboard-header');
+    const layer = header?.querySelector('.header-heart-rate');
+    const svg = layer?.querySelector('.header-heart-rate-svg');
+    const basePath = layer?.querySelector('.heart-rate-base');
+    const glowPath = layer?.querySelector('.heart-rate-glow');
+    const corePath = layer?.querySelector('.heart-rate-core');
+    const tracerTailPath = layer?.querySelector('.heart-rate-tracer-tail');
+    const tracerPath = layer?.querySelector('.heart-rate-tracer');
+
+    if (!header || !layer || !svg || !basePath || !glowPath || !corePath || !tracerTailPath || !tracerPath) return;
+    if (layer.dataset.heartRateReady === 'true') return;
+    layer.dataset.heartRateReady = 'true';
+
+    let cachedBlocked = [];
+    let cachedWidth = 0;
+    let lastBlockedMeasure = 0;
+    let lastRenderTime = 0;
+    let layoutDirty = true;
+
+    const blockerSelector = [
+        '#dashboard-title',
+        '.anunnaki-date-display',
+        '.header-brand-slot',
+        '.header-control-stack',
+        '.btn-refresh',
+        '.btn-settings',
+        '.auto-refresh-container'
+    ].join(', ');
+
+    const mergeIntervals = (intervals) => {
+        if (!intervals.length) return [];
+        intervals.sort((a, b) => a[0] - b[0]);
+
+        const merged = [intervals[0].slice()];
+        for (let i = 1; i < intervals.length; i += 1) {
+            const current = intervals[i];
+            const last = merged[merged.length - 1];
+            if (current[0] <= last[1]) {
+                last[1] = Math.max(last[1], current[1]);
+            } else {
+                merged.push(current.slice());
+            }
+        }
+        return merged;
+    };
+
+    const measureBlockedIntervals = (width) => {
+        const headerRect = header.getBoundingClientRect();
+        const layerRect = layer.getBoundingClientRect();
+        const intervals = [];
+        const nodes = header.querySelectorAll(blockerSelector);
+
+        nodes.forEach((node) => {
+            if (!(node instanceof HTMLElement)) return;
+            if (!node.offsetParent) return;
+
+            const rect = node.getBoundingClientRect();
+            const intersectsBand = rect.bottom > layerRect.top && rect.top < layerRect.bottom;
+            if (!intersectsBand) return;
+
+            const start = Math.max(0, rect.left - headerRect.left - 16);
+            const end = Math.min(width, rect.right - headerRect.left + 16);
+            if (end - start < 24) return;
+            intervals.push([start, end]);
+        });
+
+        return mergeIntervals(intervals);
+    };
+
+    const getBlockedIntervals = (width, now) => {
+        const roundedWidth = Math.round(width);
+        if (!layoutDirty && cachedBlocked.length && roundedWidth === cachedWidth && (now - lastBlockedMeasure) < 520) {
+            return cachedBlocked;
+        }
+
+        cachedBlocked = measureBlockedIntervals(width);
+        cachedWidth = roundedWidth;
+        lastBlockedMeasure = now;
+        layoutDirty = false;
+        return cachedBlocked;
+    };
+
+    const appendLine = (parts, x, y) => {
+        parts.push(`L ${x.toFixed(2)} ${y.toFixed(2)}`);
+    };
+
+    const appendHeartbeat = (parts, beatCenterX, baselineY, amplitudeY, depthY, tWaveY) => {
+        const points = [
+            [-62, 0],
+            [-48, 0],
+            [-38, -tWaveY * 0.18],
+            [-30, -tWaveY * 0.5],
+            [-22, -tWaveY * 0.12],
+            [-14, 0],
+            [-8, 1.6],
+            [-3, -amplitudeY * 0.24],
+            [0, -amplitudeY],
+            [4, depthY],
+            [10, -amplitudeY * 0.34],
+            [18, 0.7],
+            [30, -tWaveY * 0.18],
+            [42, -tWaveY],
+            [58, -tWaveY * 0.28],
+            [72, 0],
+            [86, 0]
+        ];
+
+        points.forEach(([dx, dy]) => {
+            appendLine(parts, beatCenterX + dx, baselineY + dy);
+        });
+    };
+
+    const appendSegment = (parts, startX, endX, baselineY, shiftX, amplitudeY, depthY, tWaveY) => {
+        if (endX <= startX) return;
+
+        const safeStart = startX;
+        const safeEnd = endX;
+        const segmentWidth = safeEnd - safeStart;
+        const spacing = 228;
+        const leadIn = 74;
+        const beatPhase = shiftX % spacing;
+
+        appendLine(parts, safeStart, baselineY);
+
+        if (segmentWidth < 154) {
+            appendLine(parts, safeEnd, baselineY);
+            return;
+        }
+
+        for (let beatCenter = safeStart + leadIn - beatPhase; beatCenter < safeEnd + spacing; beatCenter += spacing) {
+            const beatStart = beatCenter - 64;
+            const beatEnd = beatCenter + 88;
+            if (beatStart <= safeStart + 12 || beatEnd >= safeEnd - 12) continue;
+            appendLine(parts, beatStart, baselineY);
+            appendHeartbeat(parts, beatCenter, baselineY, amplitudeY, depthY, tWaveY);
+        }
+
+        appendLine(parts, safeEnd, baselineY);
+    };
+
+    const buildHeartRatePath = (width, height, shiftX) => {
+        const baselineY = height * 0.66;
+        const amplitudeY = Math.min(20, Math.max(15, height * 0.52));
+        const depthY = Math.min(12, Math.max(8.5, height * 0.28));
+        const tWaveY = Math.min(7.5, Math.max(4.5, height * 0.18));
+        const blocked = getBlockedIntervals(width, performance.now());
+        const parts = [`M 0.00 ${baselineY.toFixed(2)}`];
+        let cursorX = 0;
+
+        blocked.forEach(([blockedStart, blockedEnd]) => {
+            if (blockedStart > cursorX) {
+                appendSegment(parts, cursorX, blockedStart, baselineY, shiftX, amplitudeY, depthY, tWaveY);
+            }
+            appendLine(parts, blockedStart, baselineY);
+            appendLine(parts, blockedEnd, baselineY);
+            cursorX = blockedEnd;
+        });
+
+        if (cursorX < width) {
+            appendSegment(parts, cursorX, width, baselineY, shiftX, amplitudeY, depthY, tWaveY);
+        }
+
+        return {
+            baseline: `M 0.00 ${baselineY.toFixed(2)} L ${width.toFixed(2)} ${baselineY.toFixed(2)}`,
+            live: parts.join(' ')
+        };
+    };
+
+    const animate = (now) => {
+        if (document.hidden) {
+            window.requestAnimationFrame(animate);
+            return;
+        }
+
+        if (now - lastRenderTime < 33) {
+            window.requestAnimationFrame(animate);
+            return;
+        }
+        lastRenderTime = now;
+
+        const width = Math.max(200, layer.clientWidth);
+        const height = Math.max(24, layer.clientHeight);
+        const shiftX = now * 0.11;
+
+        svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+        const { baseline, live } = buildHeartRatePath(width, height, shiftX);
+        basePath.setAttribute('d', baseline);
+        glowPath.setAttribute('d', live);
+        corePath.setAttribute('d', live);
+        tracerTailPath.setAttribute('d', live);
+        tracerPath.setAttribute('d', live);
+
+        const liveLength = Math.max(1, tracerPath.getTotalLength());
+        const tracerTrail = Math.min(86, Math.max(52, width * 0.05));
+        const tracerTailTrail = Math.min(194, Math.max(128, width * 0.115));
+        const tracerOffset = (now * 0.165) % (liveLength + tracerTrail);
+        const tracerTailOffset = (now * 0.165) % (liveLength + tracerTailTrail);
+        tracerTailPath.style.strokeDasharray = `${tracerTailTrail.toFixed(2)} ${(liveLength + tracerTailTrail).toFixed(2)}`;
+        tracerTailPath.style.strokeDashoffset = `${(-tracerTailOffset).toFixed(2)}`;
+        tracerPath.style.strokeDasharray = `${tracerTrail.toFixed(2)} ${(liveLength + tracerTrail).toFixed(2)}`;
+        tracerPath.style.strokeDashoffset = `${(-tracerOffset).toFixed(2)}`;
+
+        window.requestAnimationFrame(animate);
+    };
+
+    const markHeartRateDirty = () => {
+        layoutDirty = true;
+    };
+
+    window.addEventListener('resize', markHeartRateDirty, { passive: true });
+    window.addEventListener('scroll', markHeartRateDirty, { passive: true });
+
+    window.requestAnimationFrame(animate);
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     loadSettings(); // Load saved settings on startup
@@ -10,6 +312,8 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchData();
     setInterval(updateTime, 1000);
     updateTime();
+    initLiveDatePillAnimation();
+    initHeaderHeartRate();
 
     // Listener for interval change
     const intervalInput = document.getElementById('refresh-interval');
@@ -47,7 +351,9 @@ function loadAutoRefreshSettings() {
     if (input) input.value = interval;
 
     if (isAuto) {
-        startAutoRefresh();
+        startAutoRefresh(true);
+    } else {
+        clearStoredAutoRefreshDeadline();
     }
 }
 
@@ -64,62 +370,93 @@ function toggleAutoRefresh() {
     saveAutoRefreshSettings();
 
     if (toggle && toggle.checked) {
-        startAutoRefresh();
+        startAutoRefresh(false);
     } else {
-        stopAutoRefresh();
+        stopAutoRefresh(true);
     }
 }
 
+function getStoredAutoRefreshDeadline() {
+    const rawDeadline = parseInt(localStorage.getItem(AUTO_REFRESH_DEADLINE_KEY) || '', 10);
+    return Number.isFinite(rawDeadline) ? rawDeadline : 0;
+}
 
-function startAutoRefresh() {
-    stopAutoRefresh(); // Clear existing
+function setStoredAutoRefreshDeadline(deadlineTs) {
+    localStorage.setItem(AUTO_REFRESH_DEADLINE_KEY, String(deadlineTs));
+}
+
+function clearStoredAutoRefreshDeadline() {
+    localStorage.removeItem(AUTO_REFRESH_DEADLINE_KEY);
+}
+
+function updateAutoRefreshDisplay(timeLeftSeconds) {
+    const timerDisplay = document.getElementById('timer-display');
+    if (!timerDisplay) return;
+    if (timeLeftSeconds === '' || timeLeftSeconds === null || typeof timeLeftSeconds === 'undefined') {
+        timerDisplay.textContent = '';
+        return;
+    }
+    timerDisplay.textContent = `(${timeLeftSeconds}s)`;
+}
+
+function startAutoRefresh(preserveExistingDeadline = false) {
+    stopAutoRefresh(false); // Clear existing interval but keep schedule when needed
 
     const input = document.getElementById('refresh-interval');
     const autoLabel = document.getElementById('auto-refresh-label');
+    const toggle = document.getElementById('auto-refresh-toggle');
 
     // Safety check if element exists (e.g. if container changed)
-    if (!autoLabel) {
+    if (!autoLabel || !input || !toggle) {
         console.warn("Auto Refresh label not found");
         return;
     }
 
     let secondsTotal = parseInt(input.value);
     if (isNaN(secondsTotal) || secondsTotal < 1) secondsTotal = 60; // Default to 60 if invalid, but allow values down to 1s
+    input.value = String(secondsTotal);
+    localStorage.setItem('autoRefreshInterval', String(secondsTotal));
+    localStorage.setItem('autoRefreshActive', 'true');
+    toggle.checked = true;
 
-    let timeLeft = secondsTotal;
-
-    // Update label immediately
-    if (document.getElementById('timer-display')) {
-        document.getElementById('timer-display').textContent = `(${timeLeft}s)`;
+    const now = Date.now();
+    let nextDeadline = preserveExistingDeadline ? getStoredAutoRefreshDeadline() : 0;
+    if (!nextDeadline || nextDeadline <= now) {
+        nextDeadline = now + (secondsTotal * 1000);
+        setStoredAutoRefreshDeadline(nextDeadline);
     }
 
     console.log(`Auto Refresh started: ${secondsTotal} seconds`);
 
-    refreshTimer = setInterval(() => {
-        timeLeft--;
-        if (document.getElementById('timer-display')) {
-            document.getElementById('timer-display').textContent = `(${timeLeft}s)`;
-        }
+    const tick = () => {
+        const millisLeft = nextDeadline - Date.now();
+        const timeLeft = Math.max(0, Math.ceil(millisLeft / 1000));
+        updateAutoRefreshDisplay(timeLeft);
 
-        if (timeLeft <= 0) {
+        if (millisLeft <= 0) {
+            nextDeadline = Date.now() + (secondsTotal * 1000);
+            setStoredAutoRefreshDeadline(nextDeadline);
+            updateAutoRefreshDisplay(secondsTotal);
             runExtraction(true);
-            timeLeft = secondsTotal; // Reset timer loop
-            if (document.getElementById('timer-display')) {
-                document.getElementById('timer-display').textContent = `(${timeLeft}s)`;
-            }
         }
-    }, 1000);
+    };
+
+    tick();
+    refreshTimer = setInterval(tick, 250);
 }
 
-function stopAutoRefresh() {
+function stopAutoRefresh(clearStoredDeadline = true) {
     if (refreshTimer) {
         clearInterval(refreshTimer); // Use clearInterval for setInterval
         refreshTimer = null;
         console.log("Auto Refresh stopped");
     }
+    if (clearStoredDeadline) {
+        clearStoredAutoRefreshDeadline();
+        localStorage.setItem('autoRefreshActive', 'false');
+    }
     // Reset label text
-    const timerDisplay = document.getElementById('timer-display');
-    if (timerDisplay) timerDisplay.textContent = "";
+    updateAutoRefreshDisplay('');
 }
 
 let lastDataString = "";
@@ -391,6 +728,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Start interval for time
     setInterval(updateTime, 1000);
     updateTime();
+    initLiveDatePillAnimation();
+    initHeaderHeartRate();
 });
 
 // Function to handle the "Extract" button click (Mock Logic for now)
@@ -457,8 +796,8 @@ function closeSettings() {
 // LocalStorage & Firebase Helpers
 function saveSettings() {
     const ids = [
-        'sheet-link-1', 'sheet-name-1', 'sheet-range-1', 'sheet-max-1',
-        'sheet-link-2', 'sheet-name-2', 'sheet-range-2', 'sheet-max-2'
+        'sheet-link-1', 'sheet-name-1', 'sheet-range-1', 'sheet-max-1', 'sheet-read-mode-1',
+        'sheet-link-2', 'sheet-name-2', 'sheet-range-2', 'sheet-max-2', 'sheet-read-mode-2'
     ];
     const settingsObj = {};
     ids.forEach(id => {
@@ -475,8 +814,8 @@ function saveSettings() {
 
 function loadSettings() {
     const ids = [
-        'sheet-link-1', 'sheet-name-1', 'sheet-range-1', 'sheet-max-1',
-        'sheet-link-2', 'sheet-name-2', 'sheet-range-2', 'sheet-max-2'
+        'sheet-link-1', 'sheet-name-1', 'sheet-range-1', 'sheet-max-1', 'sheet-read-mode-1',
+        'sheet-link-2', 'sheet-name-2', 'sheet-range-2', 'sheet-max-2', 'sheet-read-mode-2'
     ];
     ids.forEach(id => {
         const val = localStorage.getItem(id);
@@ -489,15 +828,17 @@ function loadSettings() {
 function clearAllSettings() {
     if (confirm("Apakah Anda yakin ingin MENGHAPUS DATA SETTING? Link dan konfigurasi Google Sheet akan dikosongkan.")) {
         const ids = [
-            'sheet-link-1', 'sheet-name-1', 'sheet-range-1', 'sheet-max-1',
-            'sheet-link-2', 'sheet-name-2', 'sheet-range-2', 'sheet-max-2'
+            'sheet-link-1', 'sheet-name-1', 'sheet-range-1', 'sheet-max-1', 'sheet-read-mode-1',
+            'sheet-link-2', 'sheet-name-2', 'sheet-range-2', 'sheet-max-2', 'sheet-read-mode-2'
         ];
 
         // Remove from localStorage
         ids.forEach(id => {
             localStorage.removeItem(id);
             const el = document.getElementById(id);
-            if (el) el.value = '';
+            if (el) {
+                el.value = id.includes('sheet-read-mode') ? 'auto' : '';
+            }
         });
 
         // Also update Firebase if active
@@ -508,6 +849,115 @@ function clearAllSettings() {
         alert("Data setting telah dikosongkan. Halaman akan dimuat ulang.");
         location.reload();
     }
+}
+
+function normalizeReadMode(value) {
+    const mode = String(value || 'auto').trim().toLowerCase();
+    if (mode === 'vertical' || mode === 'horizontal') return mode;
+    return 'auto';
+}
+
+function sliceRowFromMatrix(matrix, rowIndex, startCol, endCol) {
+    const row = Array.isArray(matrix[rowIndex]) ? matrix[rowIndex] : [];
+    const values = [];
+    for (let col = startCol; col <= endCol; col++) {
+        values.push(row[col] !== undefined ? row[col] : '');
+    }
+    return values;
+}
+
+function sliceColumnFromMatrix(matrix, colIndex, startRow, endRow) {
+    const values = [];
+    for (let row = startRow; row <= endRow; row++) {
+        const currentRow = Array.isArray(matrix[row]) ? matrix[row] : [];
+        values.push(currentRow[colIndex] !== undefined ? currentRow[colIndex] : '');
+    }
+    return values;
+}
+
+function countLikelyStatusCells(values) {
+    const statusKeywords = ['READY', 'OFF', 'OFFKAN', 'CABUT', 'BLOKIR', 'BLOCK', 'LOGOUT', 'ADM', 'REF', 'ERROR'];
+    return values.reduce((count, value) => {
+        const text = String(value || '').toUpperCase().trim();
+        if (!text) return count;
+        return statusKeywords.some(keyword => text.includes(keyword)) ? count + 1 : count;
+    }, 0);
+}
+
+function detectExtractionMode(rawData, dMeta, fetchStartRow, fetchStartCol) {
+    const relStartRow = dMeta.r1 - fetchStartRow;
+    const relEndRow = dMeta.r2 - fetchStartRow;
+    const relStartCol = dMeta.c1 - fetchStartCol;
+    const relEndCol = dMeta.c2 - fetchStartCol;
+    const dataHeight = relEndRow - relStartRow + 1;
+    const dataWidth = relEndCol - relStartCol + 1;
+
+    const horizontalStatus = sliceRowFromMatrix(rawData, relStartRow + 2, relStartCol, relEndCol);
+    const verticalStatus = sliceColumnFromMatrix(rawData, relStartCol + 2, relStartRow, relEndRow);
+    const horizontalScore = countLikelyStatusCells(horizontalStatus);
+    const verticalScore = countLikelyStatusCells(verticalStatus);
+
+    if (horizontalScore > verticalScore) return 'horizontal';
+    if (verticalScore > horizontalScore) return 'vertical';
+
+    if (dataWidth > dataHeight) return 'horizontal';
+    if (dataHeight > dataWidth) return 'vertical';
+
+    return dataHeight >= 3 ? 'horizontal' : 'vertical';
+}
+
+function extractSourceRows(rawData, dMeta, lMeta, fetchStartRow, fetchStartCol, readMode) {
+    const relStartRow = dMeta.r1 - fetchStartRow;
+    const relEndRow = dMeta.r2 - fetchStartRow;
+    const relStartCol = dMeta.c1 - fetchStartCol;
+    const relEndCol = dMeta.c2 - fetchStartCol;
+
+    const resolvedMode = readMode === 'auto'
+        ? detectExtractionMode(rawData, dMeta, fetchStartRow, fetchStartCol)
+        : readMode;
+
+    let rowName = [];
+    let rowNominal = [];
+    let rowStatus = [];
+    let rowLimit = [];
+
+    if (resolvedMode === 'vertical') {
+        rowName = sliceColumnFromMatrix(rawData, relStartCol, relStartRow, relEndRow);
+        rowNominal = sliceColumnFromMatrix(rawData, relStartCol + 1, relStartRow, relEndRow);
+        rowStatus = sliceColumnFromMatrix(rawData, relStartCol + 2, relStartRow, relEndRow);
+
+        if (lMeta) {
+            rowLimit = sliceColumnFromMatrix(
+                rawData,
+                lMeta.c1 - fetchStartCol,
+                lMeta.r1 - fetchStartRow,
+                lMeta.r2 - fetchStartRow
+            );
+        }
+    } else {
+        rowName = sliceRowFromMatrix(rawData, relStartRow, relStartCol, relEndCol);
+        rowNominal = sliceRowFromMatrix(rawData, relStartRow + 1, relStartCol, relEndCol);
+        rowStatus = sliceRowFromMatrix(rawData, relStartRow + 2, relStartCol, relEndCol);
+
+        if (lMeta) {
+            rowLimit = sliceRowFromMatrix(
+                rawData,
+                lMeta.r1 - fetchStartRow,
+                lMeta.c1 - fetchStartCol,
+                lMeta.c2 - fetchStartCol
+            );
+        }
+    }
+
+    const safeLength = rowName.length || rowNominal.length || rowStatus.length || 0;
+    if (!rowLimit.length) {
+        rowLimit = new Array(safeLength).fill('LIMIT');
+    }
+
+    return {
+        mode: resolvedMode,
+        data: [rowName, rowNominal, rowStatus, rowLimit]
+    };
 }
 
 function updateDashboardMeta() {
@@ -531,27 +981,108 @@ function updateDashboardMeta() {
     });
 }
 
+function escapeHtml(value) {
+    return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function getDashboardStatusClass(status) {
+    const text = String(status || '').toUpperCase();
+    if (text.includes('READY')) return 'status-ready';
+    if (text.includes('DI OFFKAN') || text.includes('OFF')) return 'status-warning';
+    if (text.includes('CABUT') || text.includes('BLOCKED') || text.includes('BLOKIR') || text.includes('TERBLOKIR')) return 'status-blocked';
+    if (text.includes('LOGOUT')) return 'status-logout';
+    if (text.includes('ADM')) return 'status-adm';
+    if (text.includes('REF') || text.includes('ERROR')) return 'status-ref';
+    return 'status-off';
+}
+
+function getLimitClassName(limit) {
+    const limitUpper = String(limit || '').toUpperCase();
+    if (limitUpper.includes('500')) return 'limit-500';
+    if (limitUpper.includes('250')) return 'limit-250';
+    if (limitUpper.includes('200')) return 'limit-200';
+    if (limitUpper.includes('150')) return 'limit-150';
+    if (limitUpper.includes('100')) return 'limit-100';
+    if (limitUpper.includes('50')) return 'limit-50';
+    if (limitUpper.includes('25')) return 'limit-25';
+    if (limitUpper.includes('20')) return 'limit-20';
+    if (limitUpper.includes('TAMPUNG')) return 'limit-special';
+    return '';
+}
+
+function canPatchDashboardBalances(container, sectionModels) {
+    const sectionEls = Array.from(container.querySelectorAll('.section-row.section-table-card'));
+    if (sectionEls.length !== sectionModels.length) return false;
+
+    for (let index = 0; index < sectionModels.length; index++) {
+        const sectionEl = sectionEls[index];
+        const model = sectionModels[index];
+        const titleEl = sectionEl.querySelector('.section-title');
+        if (!titleEl || titleEl.textContent.trim() !== model.title) return false;
+
+        const rowEls = Array.from(sectionEl.querySelectorAll('.dashboard-table-body .dashboard-table-row'));
+        if (rowEls.length !== model.rowItems.length) return false;
+
+        for (let rowIndex = 0; rowIndex < model.rowItems.length; rowIndex++) {
+            const rowEl = rowEls[rowIndex];
+            const item = model.rowItems[rowIndex];
+            const nameEl = rowEl.querySelector('.dashboard-cell-name');
+            const limitEl = rowEl.querySelector('.dashboard-limit-tag');
+            const statusEl = rowEl.querySelector('.status-badge');
+
+            if (!nameEl || nameEl.textContent.trim() !== item.name) return false;
+            if (!limitEl || limitEl.textContent.trim() !== item.limit) return false;
+            if (!statusEl || statusEl.textContent.trim() !== (item.status || 'UNKNOWN')) return false;
+        }
+    }
+
+    return true;
+}
+
+function patchDashboardBalances(container, sectionModels, totalReadyAll, detailedStats) {
+    const sectionEls = Array.from(container.querySelectorAll('.section-row.section-table-card'));
+
+    sectionEls.forEach((sectionEl, index) => {
+        const model = sectionModels[index];
+        if (!model) return;
+
+        const readyCountEl = sectionEl.querySelector('.table-ready-count');
+        if (readyCountEl) readyCountEl.textContent = String(model.sectionReadyCount);
+
+        const readyTotalEl = sectionEl.querySelector('.table-balance-value');
+        if (readyTotalEl) readyTotalEl.textContent = formatIDR(model.sectionReadyTotal);
+
+        const balanceEls = Array.from(sectionEl.querySelectorAll('.dashboard-table-body .dashboard-cell-balance'));
+        balanceEls.forEach((balanceEl, rowIndex) => {
+            const item = model.rowItems[rowIndex];
+            if (item) balanceEl.textContent = item.nominal;
+        });
+    });
+
+    const grandTotalEl = document.getElementById('grand-total-amount');
+    if (grandTotalEl) grandTotalEl.textContent = formatIDR(totalReadyAll);
+
+    ['25', '50', '100', '150', '200', '250'].forEach((h) => {
+        const countEl = document.getElementById(`stat-count-${h}`);
+        const totalEl = document.getElementById(`stat-total-${h}`);
+        if (countEl) countEl.textContent = `${detailedStats[h].count} BANK`;
+        if (totalEl) totalEl.textContent = formatIDR(detailedStats[h].total);
+    });
+}
+
 function renderDashboard(inputSections) {
     if (!inputSections) return;
 
-    // FIREBASE FIX: Ensure sections is an Array
     const sections = Array.isArray(inputSections) ? inputSections : Object.values(inputSections);
-
     const container = document.getElementById('main-content');
-    if (!container) return; // Safety
+    if (!container) return;
 
-    // Capture Global Scroll (Anunnaki Stabilizer)
     const scrollTop = container.scrollTop;
-
-    // Check if we need a full rebuild (First load or structure change)
-    const existingRows = container.querySelectorAll('.section-row');
-    const needsFullRebuild = existingRows.length !== sections.length;
-
-    if (needsFullRebuild) {
-        container.innerHTML = ''; // Only clear if structure changes
-    }
-
-    // Accumulators for Footer Detailed Stats
     const detailedStats = {
         '25': { count: 0, total: 0 },
         '50': { count: 0, total: 0 },
@@ -562,93 +1093,10 @@ function renderDashboard(inputSections) {
     };
 
     let totalReadyAll = 0;
-
-    sections.forEach((section, index) => {
-        let rowEl;
-        let scrollArea;
-
-        if (!needsFullRebuild && existingRows[index]) {
-            rowEl = existingRows[index];
-            scrollArea = rowEl.querySelector('.horizontal-scroll-area');
-        } else {
-            rowEl = document.createElement('div');
-            rowEl.className = `section-row theme-${section.theme || 'blue'}`;
-
-            const labelEl = document.createElement('div');
-            labelEl.className = 'section-label';
-
-            const titleH2 = document.createElement('h2');
-            titleH2.className = 'section-title';
-            titleH2.textContent = section.title;
-
-            const metaDiv = document.createElement('div');
-            metaDiv.className = 'sheet-meta';
-            metaDiv.id = `sheet-meta-${index}`;
-
-            metaDiv.innerHTML = `<span class="sheet-status-dot"></span> <span class="source-text">Source: ${section.sheetName || 'Sheet'}</span>`;
-
-            const summaryDiv = document.createElement('div');
-            summaryDiv.className = 'label-summary';
-            summaryDiv.innerHTML = `
-                <div class="summary-item">
-                    <span class="summary-label">READY SUMMARY</span>
-                    <div class="summary-data">
-                        <span id="ready-count-${section.id}" class="summary-count">0</span>
-                        <span id="ready-total-${section.id}" class="summary-amount">Rp 0</span>
-                    </div>
-                </div>
-            `;
-
-            // Lantern Left (Section)
-            const lanternLeft = document.createElement('div');
-            lanternLeft.className = 'cny-lantern-hang section-lantern-left';
-            lanternLeft.innerHTML = `
-                <div class="lantern-string"></div>
-                <div class="lantern-container">
-                    <div class="lantern-top-cap"></div>
-                    <div class="lantern-shape">
-                        <div class="rib-c"></div><div class="rib-l"></div><div class="rib-r"></div>
-                    </div>
-                    <div class="lantern-bottom-cap"></div>
-                    <div class="lantern-knot"></div>
-                    <div class="lantern-tassel-end"></div>
-                </div>
-            `;
-
-            // Lantern Right (Section)
-            const lanternRight = document.createElement('div');
-            lanternRight.className = 'cny-lantern-hang section-lantern-right';
-            lanternRight.innerHTML = `
-                <div class="lantern-string"></div>
-                <div class="lantern-container">
-                    <div class="lantern-top-cap"></div>
-                    <div class="lantern-shape">
-                        <div class="rib-c"></div><div class="rib-l"></div><div class="rib-r"></div>
-                    </div>
-                    <div class="lantern-bottom-cap"></div>
-                    <div class="lantern-knot"></div>
-                    <div class="lantern-tassel-end"></div>
-                </div>
-            `;
-
-            labelEl.appendChild(lanternLeft);
-            labelEl.appendChild(titleH2);
-            labelEl.appendChild(metaDiv);
-            labelEl.appendChild(summaryDiv);
-            labelEl.appendChild(lanternRight);
-            rowEl.appendChild(labelEl);
-
-            scrollArea = document.createElement('div');
-            scrollArea.className = 'horizontal-scroll-area';
-            rowEl.appendChild(scrollArea);
-            container.appendChild(rowEl);
-        }
-
-        const currentScrollLeft = scrollArea.scrollLeft;
-        let cardsHTML = '';
-        let hasCards = false;
+    const sectionModels = sections.map((section, index) => {
         let sectionReadyCount = 0;
         let sectionReadyTotal = 0;
+        const rowItems = [];
 
         let rawData = section.data;
         if (rawData && !Array.isArray(rawData)) {
@@ -674,12 +1122,18 @@ function renderDashboard(inputSections) {
                 const limit = (limRow[col] || 'MAX 25JT').toString().toUpperCase();
 
                 if (!name && nominal === '-') continue;
-
-                cardsHTML += createCardHTML(limit, name || '-', nominal, status);
-                hasCards = true;
+                const amount = parseNominal(nominal);
+                const displayNominal = formatIDR(amount);
+                rowItems.push({
+                    name,
+                    nominal: displayNominal,
+                    status,
+                    statusClass: getDashboardStatusClass(status),
+                    limit,
+                    limitClass: getLimitClassName(limit)
+                });
 
                 if (status.includes('READY')) {
-                    const amount = parseNominal(nominal);
                     sectionReadyCount++;
                     sectionReadyTotal += amount;
                     totalReadyAll += amount;
@@ -700,26 +1154,84 @@ function renderDashboard(inputSections) {
             }
         }
 
-        if (!hasCards) {
-            cardsHTML = `<div style="padding:20px; color:#94a3b8; font-size: 11px;"><em>No data loaded.</em></div>`;
-        }
-
-        scrollArea.innerHTML = cardsHTML;
-        scrollArea.scrollLeft = currentScrollLeft;
-
-        const countEl = document.getElementById(`ready-count-${section.id}`);
-        const totalEl = document.getElementById(`ready-total-${section.id}`);
-        if (countEl) countEl.textContent = sectionReadyCount;
-        if (totalEl) totalEl.textContent = formatIDR(sectionReadyTotal);
+        return {
+            section,
+            index,
+            title: section.title || 'SECTION',
+            theme: section.theme || 'blue',
+            sheetName: section.sheetName || 'Sheet',
+            sectionReadyCount,
+            sectionReadyTotal,
+            rowItems
+        };
     });
+
+    if (canPatchDashboardBalances(container, sectionModels)) {
+        patchDashboardBalances(container, sectionModels, totalReadyAll, detailedStats);
+        container.scrollTop = scrollTop;
+        return;
+    }
+
+    const sectionsHTML = sectionModels.map((model) => {
+        const rowsHTML = model.rowItems.length
+            ? model.rowItems.map(item => `
+                <div class="dashboard-table-row">
+                    <div class="dashboard-cell dashboard-cell-name" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+                    <div class="dashboard-cell dashboard-cell-limit">
+                        <span class="dashboard-limit-tag ${item.limitClass}">${escapeHtml(item.limit)}</span>
+                    </div>
+                    <div class="dashboard-cell dashboard-cell-status">
+                        <span class="status-badge ${item.statusClass}">${escapeHtml(item.status || 'UNKNOWN')}</span>
+                    </div>
+                    <div class="dashboard-cell dashboard-cell-balance">${escapeHtml(item.nominal)}</div>
+                </div>
+            `).join('')
+            : `<div class="dashboard-table-empty"><em>No data loaded.</em></div>`;
+
+        return `
+            <section class="section-row section-table-card theme-${escapeHtml(model.theme)}">
+                <div class="section-table-header">
+                    <div class="section-table-title-group">
+                        <h2 class="section-title">${escapeHtml(model.title)}</h2>
+                        <div class="sheet-meta" id="sheet-meta-${model.index}">
+                            <span class="sheet-status-dot"></span>
+                            <span class="source-text">Source: ${escapeHtml(model.sheetName)}</span>
+                        </div>
+                    </div>
+                    <div class="section-table-summary">
+                        <div class="table-ready-pill">
+                            <span class="table-ready-dot"></span>
+                            <span id="ready-count-${model.section.id}" class="table-ready-count">${model.sectionReadyCount}</span>
+                            <span>READY</span>
+                        </div>
+                        <div class="table-balance-box">
+                            <span class="table-balance-label">TOTAL BALANCE</span>
+                            <strong id="ready-total-${model.section.id}" class="table-balance-value">${escapeHtml(formatIDR(model.sectionReadyTotal))}</strong>
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-table-shell">
+                    <div class="dashboard-table-head">
+                        <div class="dashboard-cell dashboard-cell-name">NAMA BANK</div>
+                        <div class="dashboard-cell dashboard-cell-limit">MAX TAMPUNG</div>
+                        <div class="dashboard-cell dashboard-cell-status">STATUS</div>
+                        <div class="dashboard-cell dashboard-cell-balance">SALDO</div>
+                    </div>
+                    <div class="dashboard-table-body">
+                        ${rowsHTML}
+                    </div>
+                </div>
+            </section>
+        `;
+    }).join('');
+
+    container.innerHTML = sectionsHTML;
 
     container.scrollTop = scrollTop;
 
-    // Update Grand Total Box
     const grandTotalEl = document.getElementById('grand-total-amount');
     if (grandTotalEl) grandTotalEl.textContent = formatIDR(totalReadyAll);
 
-    // Update Footer Detailed Stats Hubs
     const hubs = ['25', '50', '100', '150', '200', '250'];
     hubs.forEach(h => {
         const countEl = document.getElementById(`stat-count-${h}`);
@@ -736,8 +1248,8 @@ function createCardHTML(limit, name, nominal, status) {
     let statusText = status ? status.toUpperCase() : 'UNKNOWN';
 
     if (statusText.includes('READY')) statusClass = 'status-ready';
-    else if (statusText.includes('OFF')) statusClass = 'status-off';
-    else if (statusText.includes('CABUT') || statusText.includes('BLOCKED')) statusClass = 'status-blocked';
+    else if (statusText.includes('DI OFFKAN') || statusText.includes('OFF')) statusClass = 'status-warning';
+    else if (statusText.includes('CABUT') || statusText.includes('BLOCKED') || statusText.includes('BLOKIR') || statusText.includes('TERBLOKIR')) statusClass = 'status-blocked';
 
     // Auto-replace dots with commas
     let displayNominal = nominal || "-";
@@ -759,7 +1271,8 @@ function createCardHTML(limit, name, nominal, status) {
     let limitClass = '';
     const limitUpper = String(limit).toUpperCase();
 
-    if (limitUpper.includes('250')) limitClass = 'limit-250';
+    if (limitUpper.includes('500')) limitClass = 'limit-500';
+    else if (limitUpper.includes('250')) limitClass = 'limit-250';
     else if (limitUpper.includes('200')) limitClass = 'limit-200';
     else if (limitUpper.includes('150')) limitClass = 'limit-150';
     else if (limitUpper.includes('100')) limitClass = 'limit-100';
@@ -809,12 +1322,126 @@ function openVipModal() {
     alert("Functionality for VIP Pencairan coming soon.");
 }
 
+const BANK_DEFINITIONS = [
+    { pattern: /SAHABAT\s+SAMPOERNA/i, key: 'sahabat-sampoerna', label: 'BANK SAHABAT SAMPOERNA' },
+    { pattern: /\bSINARMAS\b/i, key: 'sinarmas', label: 'BANK SINARMAS' },
+    { pattern: /\bMUAMALAT\b/i, key: 'muamalat', label: 'BANK MUAMALAT' },
+    { pattern: /\bMANDIRI\b/i, key: 'mandiri', label: 'BANK MANDIRI' },
+    { pattern: /\bDANAMON\b/i, key: 'danamon', label: 'BANK DANAMON' },
+    { pattern: /\bPERMATA\b/i, key: 'permata', label: 'BANK PERMATA' },
+    { pattern: /\bMAYBANK\b/i, key: 'maybank', label: 'BANK MAYBANK' },
+    { pattern: /\bPANIN\b/i, key: 'panin', label: 'BANK PANIN' },
+    { pattern: /\bOCBC\b/i, key: 'ocbc', label: 'BANK OCBC' },
+    { pattern: /\bHSBC\b/i, key: 'hsbc', label: 'BANK HSBC' },
+    { pattern: /\bCIMB\b/i, key: 'cimb', label: 'BANK CIMB' },
+    { pattern: /\bNOBU\b/i, key: 'nobu', label: 'BANK NOBU' },
+    { pattern: /\bUOB\b/i, key: 'uob', label: 'BANK UOB' },
+    { pattern: /\bMEGA\b/i, key: 'mega', label: 'BANK MEGA' },
+    { pattern: /\bBTN\b/i, key: 'btn', label: 'BANK BTN' },
+    { pattern: /\bBSI\b/i, key: 'bsi', label: 'BANK BSI' },
+    { pattern: /\bBCA\b/i, key: 'bca', label: 'BANK BCA' },
+    { pattern: /\bBRI\b/i, key: 'bri', label: 'BANK BRI' },
+    { pattern: /\bBNI\b/i, key: 'bni', label: 'BANK BNI' }
+];
+
+const BANK_COLOR_MAP = {
+    'bca': { background: '#2563eb', color: '#ffffff' },
+    'bri': { background: '#1e3a8a', color: '#ffffff' },
+    'bni': { background: '#f97316', color: '#ffffff' },
+    'mandiri': { background: '#581c87', color: '#ffffff' },
+    'danamon': { background: '#eab308', color: '#422006' },
+    'sinarmas': { background: '#dc2626', color: '#ffffff' },
+    'cimb': { background: '#991b1b', color: '#ffffff' },
+    'permata': { background: '#059669', color: '#ffffff' },
+    'maybank': { background: '#facc15', color: '#422006' },
+    'panin': { background: '#1d4ed8', color: '#ffffff' },
+    'ocbc': { background: '#ef4444', color: '#ffffff' },
+    'hsbc': { background: '#b91c1c', color: '#ffffff' },
+    'btn': { background: '#1e40af', color: '#ffffff' },
+    'bsi': { background: '#065f46', color: '#ffffff' },
+    'mega': { background: '#fb923c', color: '#422006' },
+    'muamalat': { background: '#4c1d95', color: '#ffffff' },
+    'nobu': { background: '#0f766e', color: '#ffffff' },
+    'uob': { background: '#0f4c81', color: '#ffffff' },
+    'sahabat-sampoerna': { background: '#9333ea', color: '#ffffff' }
+};
+
+function slugifyBankName(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'bank-unknown';
+}
+
+function hashBankName(value) {
+    let hash = 0;
+    const text = String(value || '');
+    for (let i = 0; i < text.length; i++) {
+        hash = ((hash << 5) - hash) + text.charCodeAt(i);
+        hash |= 0;
+    }
+    return Math.abs(hash);
+}
+
+function getBankTagStyle(bankKey, bankLabel) {
+    const preset = BANK_COLOR_MAP[bankKey];
+    if (preset) {
+        return `background:${preset.background};color:${preset.color};`;
+    }
+
+    const fallbackPalette = [
+        { background: '#475569', color: '#ffffff' },
+        { background: '#7c3aed', color: '#ffffff' },
+        { background: '#0f766e', color: '#ffffff' },
+        { background: '#b45309', color: '#ffffff' },
+        { background: '#be123c', color: '#ffffff' },
+        { background: '#1d4ed8', color: '#ffffff' }
+    ];
+    const palette = fallbackPalette[hashBankName(bankLabel) % fallbackPalette.length];
+    return `background:${palette.background};color:${palette.color};`;
+}
+
+function detectBankInfo(rawName) {
+    const sourceText = String(rawName || '');
+    const upperName = sourceText.toUpperCase().replace(/\s+/g, ' ').trim();
+
+    for (const bankDef of BANK_DEFINITIONS) {
+        if (bankDef.pattern.test(upperName)) {
+            return {
+                key: bankDef.key,
+                label: bankDef.label,
+                cssClass: bankDef.key,
+                style: getBankTagStyle(bankDef.key, bankDef.label)
+            };
+        }
+    }
+
+    const bankSource = upperName
+        .split('/')[0]
+        .replace(/\bKAS\b/gi, ' ')
+        .replace(/\bBESAR\b/gi, ' ')
+        .replace(/\bBANK\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const fallbackName = bankSource || 'LAINNYA';
+    const fallbackLabel = `BANK ${fallbackName}`;
+    const fallbackKey = slugifyBankName(fallbackName);
+
+    return {
+        key: fallbackKey,
+        label: fallbackLabel,
+        cssClass: fallbackKey,
+        style: getBankTagStyle(fallbackKey, fallbackLabel)
+    };
+}
+
 
 
 function populateMineraTable() {
     const tbody = document.getElementById('minera-table-body');
     if (!tbody) return;
-    tbody.innerHTML = '';
+    const fragment = document.createDocumentFragment();
 
     // Global Accumulators for Footer (Matching Main Dashboard Logic)
     let globalReadyCount = 0;
@@ -849,33 +1476,15 @@ function populateMineraTable() {
                 globalTotalBalance += parseNominal(nominalStr);
 
                 // Parse Bank and Proper Name
-                let bank = "OTHER";
                 let actualName = name;
-                const upperName = name.toUpperCase();
-
-                if (upperName.includes('BCA')) bank = "BCA";
-                else if (upperName.includes('BRI')) bank = "BRI";
-                else if (upperName.includes('BNI')) bank = "BNI";
-                else if (upperName.includes('MANDIRI')) bank = "MANDIRI";
-                else if (upperName.includes('DANAMON')) bank = "DANAMON";
-                else if (upperName.includes('SINARMAS')) bank = "SINARMAS";
-                else if (upperName.includes('CIMB')) bank = "CIMB";
-                else if (upperName.includes('PERMATA')) bank = "PERMATA";
-                else if (upperName.includes('MAYBANK')) bank = "MAYBANK";
-                else if (upperName.includes('PANIN')) bank = "PANIN";
-                else if (upperName.includes('OCBC')) bank = "OCBC";
-                else if (upperName.includes('HSBC')) bank = "HSBC";
-                else if (upperName.includes('BTN')) bank = "BTN";
-                else if (upperName.includes('BSI')) bank = "BSI";
-                else if (upperName.includes('MEGA')) bank = "MEGA";
-                else if (upperName.includes('MUAMALAT')) bank = "MUAMALAT";
+                const bankInfo = detectBankInfo(name);
 
                 if (name.includes('/')) {
                     const parts = name.split('/');
                     actualName = parts[1].trim();
                 } else {
                     actualName = name.replace(/KAS\s+/gi, '')
-                        .replace(/BCA|BRI|BNI|MANDIRI|DANAMON|SINARMAS|CIMB|PERMATA|MAYBANK|PANIN|OCBC|HSBC|BTN|BSI|MEGA|MUAMALAT/gi, '')
+                        .replace(/SAHABAT\s+SAMPOERNA|BCA|BRI|BNI|MANDIRI|DANAMON|SINARMAS|CIMB|PERMATA|MAYBANK|PANIN|OCBC|HSBC|BTN|BSI|MEGA|MUAMALAT|NOBU|UOB/gi, '')
                         .replace(/^\s*[\/\-]\s*/, '')
                         .trim();
                 }
@@ -885,32 +1494,34 @@ function populateMineraTable() {
                 let splitIdx = 0;
 
                 if (limitUpper.includes('200')) {
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 33333334, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 33333333, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 33333333, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 33333333, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 33333333, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 33333334, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 33333334, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 33333333, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 33333333, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 33333333, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 33333333, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 33333334, splitIdx++);
                 } else if (limitUpper.includes('150')) {
                     for (let j = 0; j < 5; j++) {
-                        createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 30000000, splitIdx++);
+                        createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 30000000, splitIdx++);
                     }
                 } else if (limitUpper.includes('100')) {
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 37999999, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 37999998, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 24000003, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 37999999, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 37999998, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 24000003, splitIdx++);
                 } else if (limitUpper.includes('50')) {
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 24999998, splitIdx++);
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, 25000002, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 24999998, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, 25000002, splitIdx++);
                 } else {
                     let rowCap = 25000000;
                     if (limitUpper.includes('25')) rowCap = 24999999;
                     else if (limitUpper.includes('20')) rowCap = 19999999;
-                    createMineraRow(tbody, limit, isReady, bank, section.theme, actualName, totalNominal, rowCap, splitIdx++);
+                    createMineraRow(fragment, limit, isReady, bankInfo, section.theme, actualName, totalNominal, rowCap, splitIdx++);
                 }
             }
         });
     }
+
+    tbody.replaceChildren(fragment);
 
     // UPDATE FOOTER SUMMARY WITH GLOBAL TOTALS
     const countEl = document.getElementById('minera-ready-count');
@@ -938,7 +1549,14 @@ function populateMineraTable() {
         newCheckAll.addEventListener('change', function () {
             const checkboxes = document.querySelectorAll('#minera-table-body .minera-check'); // Use the checkbox
             const allChecks = tbody.querySelectorAll('input[type="checkbox"]');
-            allChecks.forEach(cb => cb.checked = this.checked);
+            allChecks.forEach(cb => {
+                cb.checked = this.checked;
+                const parentTr = cb.closest('tr');
+                if (parentTr) {
+                    if (this.checked) parentTr.classList.add('row-marked-professional');
+                    else parentTr.classList.remove('row-marked-professional');
+                }
+            });
             // We do NOT call recalculateMineraTotals() to update footer digits
         });
     }
@@ -978,10 +1596,12 @@ function updateMineraTotalOut() {
     if (display) {
         display.textContent = total.toLocaleString('en-US');
 
-        // Trigger pulse animation
-        display.classList.remove('pulse-animation');
-        void display.offsetWidth; // Trigger reflow
+        // Lightweight pulse without forced reflow
         display.classList.add('pulse-animation');
+        if (mineriaTotalPulseTimer) window.clearTimeout(mineriaTotalPulseTimer);
+        mineriaTotalPulseTimer = window.setTimeout(() => {
+            display.classList.remove('pulse-animation');
+        }, 220);
 
         // Dynamic highlight via CSS classes
         if (total > 0) {
@@ -998,27 +1618,27 @@ function updateMineraTotalOut() {
 
 
 // Helper to create a single row in Minera table
-function createMineraRow(tbody, limit, isReady, bank, theme, name, nominalPart, rowMax, splitIndex = 0) {
+function createMineraRow(tbody, limit, isReady, bankInfo, theme, name, nominalPart, rowMax, splitIndex = 0) {
     const tr = document.createElement('tr');
     if (isReady) tr.style.background = 'rgba(16, 185, 129, 0.05)';
 
     // Determine unique key for persistence: [Bank]-[Name]-[Limit]-[SplitIndex]
-    const persistenceKey = `${bank}-${name}-${limit}-${splitIndex}`.replace(/\s+/g, '_');
+    const persistenceKey = `${bankInfo.key}-${name}-${limit}-${splitIndex}`.replace(/\s+/g, '_');
     tr.dataset.persistenceKey = persistenceKey;
 
     // Load saved Account Number (Cloud first, then Local Fallback)
     const savedRekening = cloudMineraAccounts[persistenceKey] || localStorage.getItem(`minera-rek-${persistenceKey}`) || "";
 
-    // Determine limit class for coloring in Minera table
+    // Reuse dashboard limit badge classes so Minera matches the main dashboard
     let limitClass = '';
     const limitUpper = String(limit).toUpperCase();
-    if (limitUpper.includes('250')) limitClass = 'minera-limit-250';
-    else if (limitUpper.includes('200')) limitClass = 'minera-limit-200';
-    else if (limitUpper.includes('150')) limitClass = 'minera-limit-150';
-    else if (limitUpper.includes('100')) limitClass = 'minera-limit-100';
-    else if (limitUpper.includes('50')) limitClass = 'minera-limit-50';
-    else if (limitUpper.includes('25')) limitClass = 'minera-limit-25';
-    else if (limitUpper.includes('TAMPUNG')) limitClass = 'minera-limit-special';
+    if (limitUpper.includes('500')) limitClass = 'limit-500';
+    else if (limitUpper.includes('250')) limitClass = 'limit-250';
+    else if (limitUpper.includes('200')) limitClass = 'limit-200';
+    else if (limitUpper.includes('150')) limitClass = 'limit-150';
+    else if (limitUpper.includes('100')) limitClass = 'limit-100';
+    else if (limitUpper.includes('50')) limitClass = 'limit-50';
+    else if (limitUpper.includes('25')) limitClass = 'limit-25';
 
     // Determine total limit for red highlighting
     let totalAccountLimit = 0;
@@ -1038,21 +1658,44 @@ function createMineraRow(tbody, limit, isReady, bank, theme, name, nominalPart, 
 
     // Fix: Ensure limit > 0 and Strict Check
     const isOverLimit = totalAccountLimit > 0 && nominalPart > totalAccountLimit;
-    const saldoColor = isOverLimit ? '#ef4444' : '#94a3b8';
+    const saldoClass = isOverLimit ? 'saldo-alert' : 'saldo-normal';
+
+    // Load saved Checkbox State
+    const savedCheck = localStorage.getItem(`minera-check-${persistenceKey}`);
+    let isChecked = isReady; // Default fallback to Google Sheet 'READY'
+    if (savedCheck === "true") isChecked = true;
+    else if (savedCheck === "false") isChecked = false;
 
     tr.innerHTML = `
-        <td><span class="minera-limit-tag ${limitClass}">${limit}</span></td>
-        <td><input type="checkbox" ${isReady ? 'checked' : ''} class="minera-check"></td>
-        <td><span class="bank-tag bank-${bank.toLowerCase()}">${bank}</span></td>
+        <td><span class="dashboard-limit-tag mineria-limit-pill ${limitClass}">${limit}</span></td>
+        <td><input type="checkbox" ${isChecked ? 'checked' : ''} class="minera-check"></td>
+        <td><span class="bank-tag bank-${bankInfo.cssClass}" style="${bankInfo.style}">${bankInfo.label}</span></td>
         <td><span class="tipe-tag tipe-${theme}">${theme === 'yellow' ? 'Kotor' : 'Bersih'}</span></td>
         <td><input type="text" class="minera-input rek-input" placeholder="Rekening..." value="${savedRekening}"></td>
-        <td style="font-weight: 600; width: 200px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${name}">${name}</td>
+        <td style="font-weight: 600; width: 150px; max-width: 150px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${name}">${name}</td>
         <td><input type="text" class="minera-input val-input input-in" value="0" data-max="${rowMax}"></td>
         <td><input type="text" class="minera-input val-input input-out" value="0" data-max="${rowMax}"></td>
-        <td class="minera-saldo-col" style="color: ${saldoColor} !important; font-weight: ${isOverLimit ? '700' : '600'};">
-            ${formatIDR(nominalPart).replace(/Rp\s/, '')}
+        <td class="minera-saldo-col ${saldoClass}">
+            <span class="minera-saldo-pill ${saldoClass}">
+                <span class="minera-saldo-prefix">Rp</span>${formatIDR(nominalPart).replace(/Rp\s/, '')}
+            </span>
         </td>
     `;
+
+    if (isChecked) {
+        tr.classList.add('row-marked-professional');
+    }
+
+    const checkEl = tr.querySelector('.minera-check');
+    if (checkEl) {
+        checkEl.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                tr.classList.add('row-marked-professional');
+            } else {
+                tr.classList.remove('row-marked-professional');
+            }
+        });
+    }
 
     // Add Auto-Capping and Formatting
     const inputs = tr.querySelectorAll('.val-input');
@@ -1275,59 +1918,121 @@ function showToast(message, type = 'success') {
     }, 2500);
 }
 
-function saveMineraData() {
-    // 1. Immediate UI Feedback (Non-blocking)
-    const btn = document.querySelector('.btn-save-minera');
-    let originalText = '';
+let mineraSaveInProgress = false;
 
-    if (btn) {
-        originalText = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> SAVING...';
-        btn.style.background = '#059669'; // Darker green while saving
-        // REMOVED pointer-events: none to allow user to spam if they really want, or at least not feel "stuck"
+function afterNextPaint(callback) {
+    if (typeof requestAnimationFrame === 'function') {
+        requestAnimationFrame(() => requestAnimationFrame(callback));
+    } else {
+        setTimeout(callback, 16);
+    }
+}
+
+function collectMineraSaveSnapshot() {
+    const rows = document.querySelectorAll('#minera-table-body tr');
+    const snapshot = [];
+
+    rows.forEach(tr => {
+        const key = tr.dataset.persistenceKey;
+        const input = tr.querySelector('.rek-input');
+        const check = tr.querySelector('.minera-check');
+
+        if (!key) return;
+
+        snapshot.push({
+            key,
+            rekening: input ? input.value.trim() : '',
+            checked: !!(check && check.checked)
+        });
+    });
+
+    return snapshot;
+}
+
+function persistMineraSnapshot(snapshot, onComplete) {
+    const accountsUpdate = {};
+    let index = 0;
+    const chunkSize = 20;
+
+    function processChunk() {
+        const limit = Math.min(index + chunkSize, snapshot.length);
+
+        for (; index < limit; index++) {
+            const item = snapshot[index];
+            const rekeningKey = `minera-rek-${item.key}`;
+            const checkKey = `minera-check-${item.key}`;
+            const nextCheckValue = item.checked ? 'true' : 'false';
+
+            if (item.rekening) {
+                accountsUpdate[item.key] = item.rekening;
+                if (localStorage.getItem(rekeningKey) !== item.rekening) {
+                    localStorage.setItem(rekeningKey, item.rekening);
+                }
+            } else {
+                accountsUpdate[item.key] = '';
+                if (localStorage.getItem(rekeningKey) !== null) {
+                    localStorage.removeItem(rekeningKey);
+                }
+            }
+
+            if (localStorage.getItem(checkKey) !== nextCheckValue) {
+                localStorage.setItem(checkKey, nextCheckValue);
+            }
+        }
+
+        if (index < snapshot.length) {
+            afterNextPaint(processChunk);
+            return;
+        }
+
+        const finish = () => {
+            if (typeof onComplete === 'function') onComplete();
+        };
+
+        if (typeof firebase !== 'undefined' && db) {
+            db.ref('minera_accounts').update(accountsUpdate)
+                .then(finish)
+                .catch((error) => {
+                    console.error(error);
+                    finish();
+                });
+        } else {
+            finish();
+        }
     }
 
-    // 2. Defer Heavy Logic very slightly
-    setTimeout(() => {
-        const rows = document.querySelectorAll('#minera-table-body tr');
-        const accountsUpdate = {};
+    processChunk();
+}
 
-        // Fast synchronous DOM read (DOM reading is fast enough mostly)
-        rows.forEach(tr => {
-            const key = tr.dataset.persistenceKey;
-            const input = tr.querySelector('.rek-input');
-            if (key && input) {
-                const val = input.value; // No trim needed for loose check, speed up
-                if (val) accountsUpdate[key] = val;
-                // localStorage.setItem is sync but fast for simple strings. 
-                // We can debounce the actual disk write if needed, but for now this is fine.
-                localStorage.setItem(`minera-rek-${key}`, val);
+function saveMineraData() {
+    if (mineraSaveInProgress) return;
+    mineraSaveInProgress = true;
+
+    const btn = document.querySelector('.btn-save-minera');
+    const originalText = btn ? btn.innerHTML : '';
+
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> SAVING...';
+        btn.style.background = '#059669';
+        btn.disabled = true;
+    }
+
+    const snapshot = collectMineraSaveSnapshot();
+    closeMineraModal();
+
+    afterNextPaint(() => {
+        persistMineraSnapshot(snapshot, () => {
+            mineraSaveInProgress = false;
+
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.style.background = '';
+                btn.disabled = false;
             }
+
+            showToast('Data Rekening Berhasil Disimpan!', 'success');
         });
-
-        // Fire & Forget Firebase update
-        if (typeof firebase !== 'undefined' && db) {
-            db.ref('minera_accounts').update(accountsUpdate).catch(console.error);
-        }
-
-        // 3. Fast Restore UI
-        if (btn) {
-            btn.innerHTML = '<i class="fas fa-check"></i> SAVED';
-            btn.style.background = '#10b981'; // Bright green success
-
-            setTimeout(() => {
-                // Only revert if user hasn't triggered another save
-                if (btn.innerHTML.includes('SAVED')) {
-                    btn.innerHTML = originalText;
-                    btn.style.background = '';
-                }
-            }, 1000); // Reduced delay
-        }
-
-        // Non-blocking toast
-        showToast('Data Rekening Berhasil Disimpan!', 'success');
-
-    }, 10);
+    });
 }
 
 // Helpers for Stats
@@ -1396,9 +2101,22 @@ function createCard(limit, name, nominal, status) {
     const card = document.createElement('div');
     card.className = 'data-card';
 
+    // Determine limit class for coloring
+    let limitClass = '';
+    const limitUpper = String(limit || '').toUpperCase();
+    if (limitUpper.includes('500')) limitClass = 'limit-500';
+    else if (limitUpper.includes('250')) limitClass = 'limit-250';
+    else if (limitUpper.includes('200')) limitClass = 'limit-200';
+    else if (limitUpper.includes('150')) limitClass = 'limit-150';
+    else if (limitUpper.includes('100')) limitClass = 'limit-100';
+    else if (limitUpper.includes('50')) limitClass = 'limit-50';
+    else if (limitUpper.includes('25')) limitClass = 'limit-25';
+    else if (limitUpper.includes('20')) limitClass = 'limit-20';
+    else if (limitUpper.includes('TAMPUNG')) limitClass = 'limit-special';
+
     // 1. Limit Header (Top)
     const header = document.createElement('div');
-    header.className = 'card-header';
+    header.className = `card-header ${limitClass}`.trim();
     header.textContent = limit || "LIMIT -";
     header.title = limit; // Tooltip for full text
     card.appendChild(header);
@@ -1451,8 +2169,8 @@ function createCard(limit, name, nominal, status) {
     // Determine Color Class
     const s = (status || '').toUpperCase();
     if (s.includes('READY')) badge.className += ' status-ready';
-    else if (s.includes('OFF')) badge.className += ' status-off';
-    else if (s.includes('BLOKIR')) badge.className += ' status-blocked';
+    else if (s.includes('DI OFFKAN') || s.includes('OFF')) badge.className += ' status-warning';
+    else if (s.includes('BLOKIR') || s.includes('TERBLOKIR')) badge.className += ' status-blocked';
     else if (s.includes('CABUT')) badge.className += ' status-cabut';
     else if (s.includes('LOGOUT')) badge.className += ' status-logout';
     else if (s.includes('ADM')) badge.className += ' status-adm';
@@ -1713,8 +2431,9 @@ async function executeExtraction(isAuto) {
         const name = (document.getElementById(`sheet-name-${p}`).value || '').trim();
         const dRange = (document.getElementById(`sheet-range-${p}`).value || '').trim(); // DATA: AK4:BG6
         const lRange = (document.getElementById(`sheet-max-${p}`) ? document.getElementById(`sheet-max-${p}`).value : "").trim();
+        const readMode = normalizeReadMode(document.getElementById(`sheet-read-mode-${p}`)?.value);
 
-        console.log(`[Source ${p}] Processing: Name='${name}' Range='${dRange}' Max='${lRange}'`); // LIMIT: AK2:BG2
+        console.log(`[Source ${p}] Processing: Name='${name}' Range='${dRange}' Max='${lRange}' Mode='${readMode}'`); // LIMIT: AK2:BG2
 
         if (!link || !name || !dRange) return null;
 
@@ -1752,23 +2471,12 @@ async function executeExtraction(isAuto) {
         // Row 2 (Limit) is at index 0.
         // Row 4 (Name) is at index 2 (4 - 2).
 
-        const getRow = (absoluteRowIndex) => {
-            // rawData is ALREADY sliced by fetchSheetData (if Published & range match)
-            // or by GVIZ.
-            // Assumption: rawData[0] corresponds to fetchStartRow.
-            const relIdx = absoluteRowIndex - fetchStartRow;
-            return (rawData && rawData[relIdx]) ? rawData[relIdx] : [];
-        };
-
-        const rowName = getRow(dMeta.r1);       // AK4
-        const rowNominal = getRow(dMeta.r1 + 1); // AK5
-        const rowStatus = getRow(dMeta.r1 + 2);  // AK6
-        const safeLength = rowName.length || rowNominal.length || rowStatus.length || 0;
-        const rowLimit = lMeta ? getRow(lMeta.r1) : new Array(safeLength).fill("LIMIT");
+        const extracted = extractSourceRows(rawData, dMeta, lMeta, fetchStartRow, fetchStartCol, readMode);
+        console.log(`[Source ${p}] Final Read Mode: ${extracted.mode}`);
 
         return {
             idx: idx,
-            data: [rowName, rowNominal, rowStatus, rowLimit]
+            data: extracted.data
         };
     };
 
@@ -1819,12 +2527,12 @@ function updateTime() {
     const now = new Date();
 
     // Day Name
-    const days = ['MINGGU', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU'];
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const dayName = days[now.getDay()];
 
     // Full Date
     const date = now.getDate();
-    const months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const monthName = months[now.getMonth()];
     const year = now.getFullYear();
 
@@ -1873,7 +2581,7 @@ const MOCK_EXTRACTED_DATA = {
                 [
                     "READY", "READY", "READY", "READY", "READY",
                     "DI OFFKAN", "READY", "READY", "DI OFFKAN", "READY",
-                    "READY", "CABUT KAS", "READY", "READY", "READY",
+                    "READY", "CABUT KAS 1", "READY", "READY", "READY",
                     "READY", "READY", "DI OFFKAN", "READY", "READY"
                 ],
                 // Row 4: MAX TAMPUNG (Simulated from H6)

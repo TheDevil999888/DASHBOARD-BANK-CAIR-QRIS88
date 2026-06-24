@@ -7,9 +7,9 @@ function resetAutoCheckState() {
     const input = document.getElementById('auto-check-limit');
     if (input) input.value = '';
 
-    const highlighted = document.querySelectorAll('.highlight-marked');
+    const highlighted = document.querySelectorAll('.row-marked-professional');
     highlighted.forEach(tr => {
-        tr.classList.remove('highlight-marked');
+        tr.classList.remove('row-marked-professional');
         const cb = tr.querySelector('.minera-check');
         if (cb) cb.checked = false;
     });
@@ -65,10 +65,10 @@ function autoCheckUnderLimit() {
             if (saldoVal < rawVal) {
                 checkbox.checked = true;
                 markedCount++;
-                tr.classList.add('highlight-marked');
+                tr.classList.add('row-marked-professional');
             } else {
                 checkbox.checked = false;
-                tr.classList.remove('highlight-marked');
+                tr.classList.remove('row-marked-professional');
             }
         }
     });
